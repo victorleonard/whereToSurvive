@@ -90,6 +90,16 @@ const climateProfiles = [
     </div>
   </div>
 
+  <button
+    type="button"
+    class="map-fs-close"
+    data-map-fs-close
+    hidden
+    aria-label="Quitter le plein écran"
+  >
+    Fermer
+  </button>
+
   <div class="explorer-stage">
     <div class="map-shell">
       <div
@@ -789,6 +799,7 @@ const climateProfiles = [
 
     const fullscreenBtn = explorer.querySelector('[data-map-fullscreen]')
     const fullscreenLabel = explorer.querySelector('[data-fullscreen-label]')
+    const fullscreenCloseBtn = explorer.querySelector('[data-map-fs-close]')
     const mobileMq = window.matchMedia('(max-width: 959px)')
 
     function isMobileViewport() {
@@ -818,13 +829,16 @@ const climateProfiles = [
         fullscreenBtn.classList.toggle('is-active', active)
         fullscreenBtn.setAttribute('aria-pressed', active ? 'true' : 'false')
         fullscreenBtn.title = active ? 'Quitter le plein écran' : 'Plein écran'
-        fullscreenBtn.hidden = isMobileViewport()
+        fullscreenBtn.hidden = false
       }
       if (fullscreenLabel instanceof HTMLElement) {
         fullscreenLabel.textContent = active ? 'Réduire' : 'Plein écran'
       }
+      if (fullscreenCloseBtn instanceof HTMLButtonElement) {
+        fullscreenCloseBtn.hidden = !(active && isMobileViewport())
+      }
 
-      // En page : Ctrl+molette. En plein écran : zoom molette direct.
+      // En page : Ctrl+molette. En plein écran : zoom molette / pinch libre.
       if (active) {
         map.cooperativeGestures?.disable()
         map.scrollZoom.enable()
@@ -837,7 +851,12 @@ const climateProfiles = [
     }
 
     async function enterFullscreen() {
-      if (isMobileViewport()) return
+      // iOS Safari : Fullscreen API peu fiable sur un div → overlay CSS.
+      if (isMobileViewport()) {
+        explorer.classList.add('is-map-fullscreen')
+        syncFullscreenUi()
+        return
+      }
       const el = /** @type {HTMLElement & { webkitRequestFullscreen?: () => void }} */ (
         explorer
       )
@@ -879,20 +898,21 @@ const climateProfiles = [
       syncFullscreenUi()
     }
 
-    fullscreenBtn?.addEventListener('click', () => {
-      if (isMobileViewport()) return
+    function toggleFullscreen() {
       if (isExplorerFullscreen()) void exitFullscreen()
       else void enterFullscreen()
+    }
+
+    fullscreenBtn?.addEventListener('click', toggleFullscreen)
+    fullscreenCloseBtn?.addEventListener('click', () => {
+      void exitFullscreen()
     })
 
     const onMobileChange = () => {
-      if (isMobileViewport()) {
-        if (isExplorerFullscreen()) void exitFullscreen()
-        else if (fullscreenBtn instanceof HTMLButtonElement) {
-          fullscreenBtn.hidden = true
-        }
-      } else if (fullscreenBtn instanceof HTMLButtonElement) {
-        fullscreenBtn.hidden = false
+      if (fullscreenCloseBtn instanceof HTMLButtonElement) {
+        fullscreenCloseBtn.hidden = !(
+          isExplorerFullscreen() && isMobileViewport()
+        )
       }
       window.setTimeout(() => map.resize(), 100)
     }
@@ -901,12 +921,11 @@ const climateProfiles = [
     } else if ('addListener' in mobileMq) {
       mobileMq.addListener(onMobileChange)
     }
-    onMobileChange()
 
     document.addEventListener('fullscreenchange', syncFullscreenUi)
     document.addEventListener('webkitfullscreenchange', syncFullscreenUi)
     document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape' && explorer.classList.contains('is-map-fullscreen')) {
+      if (event.key === 'Escape' && isExplorerFullscreen()) {
         void exitFullscreen()
       }
     })

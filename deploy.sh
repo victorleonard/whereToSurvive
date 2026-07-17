@@ -29,6 +29,9 @@ ENSEMBLE=1
 SKIP_EXISTING=1
 FORCE=0
 COMMUNE_LIMIT_VAL="${COMMUNE_LIMIT:-100}"
+LIMIT_EXPLICIT=0
+ETL_LIMIT_EXPLICIT=0
+ETL_HORIZON_EXPLICIT=0
 
 usage() {
   cat <<'EOF'
@@ -87,6 +90,7 @@ while [[ $# -gt 0 ]]; do
     --limit)
       shift
       COMMUNE_LIMIT_VAL="$1"
+      LIMIT_EXPLICIT=1
       ;;
     --etl-drias) DO_ETL_DRIAS=1 ;;
     --etl-drias-fast)
@@ -97,10 +101,12 @@ while [[ $# -gt 0 ]]; do
     --etl-horizon)
       shift
       ETL_HORIZON_VAL="$1"
+      ETL_HORIZON_EXPLICIT=1
       ;;
     --etl-limit)
       shift
       ETL_LIMIT_VAL="$1"
+      ETL_LIMIT_EXPLICIT=1
       ;;
     --skip-existing) SKIP_EXISTING=1 ;;
     --no-skip-existing) SKIP_EXISTING=0 ;;
@@ -114,17 +120,28 @@ while [[ $# -gt 0 ]]; do
     --preprod-data)
       DO_IMPORT=1
       IMPORT_MODE="sample"
-      COMMUNE_LIMIT_VAL="${COMMUNE_LIMIT_VAL:-1000}"
       DO_ETL_DRIAS=1
-      ETL_LIMIT_VAL="${ETL_LIMIT_VAL:-1000}"
-      ETL_HORIZON_VAL="${ETL_HORIZON_VAL:-all}"
+      # Force 1000 même si COMMUNE_LIMIT=100 dans .env (sauf --limit / --etl-limit)
+      if [[ "$LIMIT_EXPLICIT" -eq 0 ]]; then
+        COMMUNE_LIMIT_VAL=1000
+      fi
+      if [[ "$ETL_LIMIT_EXPLICIT" -eq 0 ]]; then
+        ETL_LIMIT_VAL=1000
+      fi
+      if [[ "$ETL_HORIZON_EXPLICIT" -eq 0 ]]; then
+        ETL_HORIZON_VAL="all"
+      fi
       ;;
     --dev-data)
       DO_IMPORT=1
       IMPORT_MODE="sample"
       DO_ETL_DRIAS=1
-      ETL_LIMIT_VAL="${ETL_LIMIT_VAL:-100}"
-      ETL_HORIZON_VAL="${ETL_HORIZON_VAL:-all}"
+      if [[ "$ETL_LIMIT_EXPLICIT" -eq 0 ]]; then
+        ETL_LIMIT_VAL=100
+      fi
+      if [[ "$ETL_HORIZON_EXPLICIT" -eq 0 ]]; then
+        ETL_HORIZON_VAL="all"
+      fi
       ;;
     -h|--help)
       usage

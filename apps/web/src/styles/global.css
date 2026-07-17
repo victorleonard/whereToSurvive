@@ -876,42 +876,261 @@ html.map-fs-active body {
   overscroll-behavior: contain;
 }
 
-@media (max-width: 900px) {
+.mode-toggle-label-short {
+  display: none;
+}
+
+.explorer:fullscreen .mode-toggle-label-full,
+.explorer:-webkit-full-screen .mode-toggle-label-full,
+.explorer.is-map-fullscreen .mode-toggle-label-full {
+  display: none;
+}
+
+.explorer:fullscreen .mode-toggle-label-short,
+.explorer:-webkit-full-screen .mode-toggle-label-short,
+.explorer.is-map-fullscreen .mode-toggle-label-short {
+  display: inline;
+}
+
+.explorer:fullscreen .explorer-toolbar-filters .mode-toggle,
+.explorer:-webkit-full-screen .explorer-toolbar-filters .mode-toggle,
+.explorer.is-map-fullscreen .explorer-toolbar-filters .mode-toggle {
+  width: auto;
+  flex: 0 0 auto;
+}
+
+.explorer:fullscreen .explorer-toolbar-filters .mode-toggle button,
+.explorer:-webkit-full-screen .explorer-toolbar-filters .mode-toggle button,
+.explorer.is-map-fullscreen .explorer-toolbar-filters .mode-toggle button {
+  flex: 0 0 auto;
+  gap: 0.35rem;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.8rem;
+}
+
+.explorer:fullscreen .explorer-search,
+.explorer:-webkit-full-screen .explorer-search,
+.explorer.is-map-fullscreen .explorer-search {
+  display: none;
+}
+
+/* Mobile plein écran : carte dominante + filtres compacts (pas de classement) */
+@media (max-width: 959px) {
+  .explorer:fullscreen,
+  .explorer:-webkit-full-screen,
+  .explorer.is-map-fullscreen {
+    display: block;
+    padding: 0;
+    gap: 0;
+    overflow: hidden;
+  }
+
+  .explorer.is-map-fullscreen {
+    padding-top: 0;
+    padding-right: 0;
+    padding-bottom: 0;
+    padding-left: 0;
+  }
+
   .explorer:fullscreen .explorer-stage,
   .explorer:-webkit-full-screen .explorer-stage,
   .explorer.is-map-fullscreen .explorer-stage {
-    grid-template-columns: 1fr;
-    grid-template-rows: minmax(0, 1fr) minmax(12rem, 38%);
+    position: absolute;
+    inset: 0;
+    display: block;
+    grid-template-columns: none;
+    grid-template-rows: none;
+    height: 100%;
+    min-height: 100%;
+    gap: 0;
+  }
+
+  .explorer:fullscreen .map-shell,
+  .explorer:-webkit-full-screen .map-shell,
+  .explorer.is-map-fullscreen .map-shell {
+    position: absolute;
+    inset: 0;
+    height: 100%;
+    min-height: 100%;
+  }
+
+  .explorer:fullscreen .map-canvas,
+  .explorer:-webkit-full-screen .map-canvas,
+  .explorer.is-map-fullscreen .map-canvas {
+    height: 100%;
+    min-height: 100%;
+    border-radius: 0;
+  }
+
+  .explorer:fullscreen .rank-panel,
+  .explorer:-webkit-full-screen .rank-panel,
+  .explorer.is-map-fullscreen .rank-panel {
+    display: grid !important;
+    grid-template-rows: auto;
+    position: absolute;
+    left: max(0.55rem, env(safe-area-inset-left));
+    right: max(0.55rem, env(safe-area-inset-right));
+    bottom: max(0.55rem, env(safe-area-inset-bottom));
+    z-index: 4;
+    height: auto;
+    max-height: none;
+    min-height: 0;
+    overflow: visible;
+    gap: 0.45rem;
+    padding: 0.55rem 0.65rem 0.6rem;
+    border: 1px solid rgba(231, 242, 239, 0.14);
+    border-radius: 0.85rem;
+    background: rgba(7, 20, 18, 0.88);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  }
+
+  .explorer.is-map-fullscreen .rank-head {
+    gap: 0.45rem;
+  }
+
+  .explorer.is-map-fullscreen .rank-head-top,
+  .explorer.is-map-fullscreen .rank-list {
+    display: none !important;
+  }
+
+  .explorer.is-map-fullscreen .rank-controls {
+    display: grid;
+    gap: 0.45rem;
+  }
+
+  .explorer.is-map-fullscreen .rank-control-label {
+    display: none;
+  }
+
+  .explorer.is-map-fullscreen .profile-toggle {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.35rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .explorer.is-map-fullscreen .profile-toggle::-webkit-scrollbar {
+    display: none;
+  }
+
+  .explorer.is-map-fullscreen .profile-toggle button {
+    flex-shrink: 0;
+    padding: 0.35rem 0.65rem;
+    font-size: 0.78rem;
+  }
+
+  .explorer.is-map-fullscreen .rank-shortcuts {
+    gap: 0.15rem 0.75rem;
+    padding-bottom: 0.05rem;
+  }
+
+  .explorer.is-map-fullscreen .rank-shortcuts button {
+    font-size: 0.82rem;
+  }
+
+  .explorer:fullscreen .explorer-toolbar,
+  .explorer:-webkit-full-screen .explorer-toolbar,
+  .explorer.is-map-fullscreen .explorer-toolbar {
+    position: absolute;
+    top: max(0.55rem, env(safe-area-inset-top));
+    left: max(0.55rem, env(safe-area-inset-left));
+    right: max(0.55rem, env(safe-area-inset-right));
+    z-index: 4;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.45rem 0.5rem;
+    border-radius: 0.85rem;
+    background: rgba(7, 20, 18, 0.82);
+    border: 1px solid rgba(231, 242, 239, 0.14);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  }
+
+  .explorer.is-map-fullscreen .explorer-toolbar-filters {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .explorer.is-map-fullscreen .explorer-toolbar-filters .mode-toggle {
+    width: auto;
+    flex: 0 0 auto;
+  }
+
+  .explorer.is-map-fullscreen .explorer-toolbar-filters .mode-toggle button {
+    flex: 0 0 auto;
+    gap: 0.35rem;
+    padding: 0.45rem 0.6rem;
+    font-size: 0.78rem;
+  }
+
+  .explorer.is-map-fullscreen .explorer-toolbar-filters .mode-toggle-icon {
+    width: 1.05rem;
+    height: 1.05rem;
+  }
+
+  .explorer.is-map-fullscreen .horizon-toggle button {
+    padding: 0.45rem 0.65rem;
+    font-size: 0.78rem;
+  }
+
+  .explorer.is-map-fullscreen .explorer-search {
+    display: none;
+  }
+
+  .explorer.is-map-fullscreen .explorer-toolbar-meta {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0;
+    margin: 0;
+  }
+
+  .explorer.is-map-fullscreen .map-status,
+  .explorer.is-map-fullscreen .map-fullscreen-btn {
+    display: none;
+  }
+
+  .explorer.is-map-fullscreen .map-legend {
+    bottom: max(6.5rem, calc(env(safe-area-inset-bottom) + 5.75rem));
+    left: max(0.75rem, env(safe-area-inset-left));
   }
 
   .explorer.is-map-fullscreen .map-fs-close:not([hidden]) {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    position: absolute;
-    top: max(0.65rem, env(safe-area-inset-top));
-    right: max(0.65rem, env(safe-area-inset-right));
-    z-index: 5;
+    position: static;
     appearance: none;
-    border: 1px solid rgba(231, 242, 239, 0.28);
-    border-radius: 999px;
-    background: rgba(7, 20, 18, 0.92);
+    border: 1px solid rgba(231, 242, 239, 0.22);
+    border-radius: 0.55rem;
+    background: rgba(231, 242, 239, 0.08);
     color: var(--foam);
     font: inherit;
-    font-size: 0.82rem;
+    font-size: 0.78rem;
     font-weight: 650;
     letter-spacing: 0.02em;
-    padding: 0.55rem 0.95rem;
+    padding: 0.45rem 0.7rem;
+    min-height: 2.35rem;
     cursor: pointer;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    box-shadow: none;
+    white-space: nowrap;
   }
 
-  .explorer.is-map-fullscreen .explorer-toolbar {
-    padding-right: 5.5rem;
-  }
-
-  .explorer.is-map-fullscreen .map-fullscreen-btn {
-    display: none;
+  .explorer.is-map-fullscreen .map-fs-close:not([hidden]):hover {
+    background: rgba(231, 242, 239, 0.14);
+    border-color: rgba(231, 242, 239, 0.32);
   }
 }
 
@@ -2419,6 +2638,16 @@ html.map-fs-active body {
     min-height: 16rem;
     max-height: none;
     border-radius: 0.85rem;
+  }
+
+  /* Plein écran mobile : ne pas hériter de la hauteur “aperçu” */
+  .explorer.is-map-fullscreen .map-canvas,
+  .explorer:fullscreen .map-canvas,
+  .explorer:-webkit-full-screen .map-canvas {
+    height: 100%;
+    min-height: 100%;
+    max-height: none;
+    border-radius: 0;
   }
 
   .map-legend {

@@ -45,13 +45,25 @@ const climateProfiles = [
   <div class="explorer-toolbar">
     <div class="explorer-toolbar-filters">
       <div class="mode-toggle" role="group" aria-label="Mode d’exploration">
-        <button type="button" class="is-active" data-score-family="climate">
+        <button
+          type="button"
+          class="is-active"
+          data-score-family="climate"
+          aria-label="Climat"
+        >
           <CloudSun class="mode-toggle-icon" size={16} stroke-width={2} aria-hidden="true" />
-          <span>Climat</span>
+          <span class="mode-toggle-label">Climat</span>
         </button>
-        <button type="button" data-score-family="place">
+        <button
+          type="button"
+          data-score-family="place"
+          aria-label="Sol et bâti"
+        >
           <House class="mode-toggle-icon" size={16} stroke-width={2} aria-hidden="true" />
-          <span>Sol &amp; bâti</span>
+          <span class="mode-toggle-label">
+            <span class="mode-toggle-label-full">Sol &amp; bâti</span>
+            <span class="mode-toggle-label-short">Sol</span>
+          </span>
         </button>
       </div>
       <div
@@ -87,18 +99,17 @@ const climateProfiles = [
       >
         <span data-fullscreen-label>Plein écran</span>
       </button>
+      <button
+        type="button"
+        class="map-fs-close"
+        data-map-fs-close
+        hidden
+        aria-label="Quitter le plein écran"
+      >
+        Fermer
+      </button>
     </div>
   </div>
-
-  <button
-    type="button"
-    class="map-fs-close"
-    data-map-fs-close
-    hidden
-    aria-label="Quitter le plein écran"
-  >
-    Fermer
-  </button>
 
   <div class="explorer-stage">
     <div class="map-shell">

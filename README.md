@@ -67,42 +67,6 @@ npm run etl:regulatory
 
 Ou `BDIFF_CSV=/chemin/vers/export.csv npm run etl:bdiff`.
 
-## Prod VPS — persistance `/projets/@data`
-
-Guide détaillé : **[docs/mise-en-prod.md](docs/mise-en-prod.md)**.
-
-`/projets/@data` est **partagé** (ex. `ludolist/`, `mysql/`). WhereToSurvive n’écrit **que** dans son sous-dossier :
-
-```
-/projets/
-  @data/
-    ludolist/              ← autres projets — ne pas toucher
-    mysql/
-    wheretosurvive/        ← ce projet uniquement
-      postgres/            ← PostGIS
-      redis/
-      etl/                 ← checkpoints DRIAS
-  whereToSurvive/
-```
-
-Dans `.env` sur le VPS :
-
-```bash
-DATA_ROOT=/projets/@data
-```
-
-(`deploy.sh` résout en `$DATA_ROOT/wheretosurvive/…` — jamais à la racine de `@data`.)
-
-Puis :
-
-```bash
-./deploy.sh --build --up --migrate
-# ou chargement national
-./deploy.sh --up --migrate --prod-data
-```
-
-`docker compose down` **ne supprime pas** ces dossiers (bind mounts, pas de volume Docker nommé).
-
 ## Prod / Docker — `deploy.sh`
 
 ```bash

@@ -53,12 +53,16 @@ WEB_PORT=4321
 # SSR → API interne Docker (souvent déjà OK via docker-compose)
 API_URL=http://api:3000
 
-# Navigateur → API publique (à adapter au domaine réel)
-PUBLIC_API_URL=https://api.votredomaine.fr
+# Navigateur → API joignable depuis ton PC (pas localhost du VPS)
+# Sans domaine : IP publique du VPS + port API
+PUBLIC_API_URL=http://IP.DU.VPS:3000
+# Plus tard avec domaine / HTTPS :
+# PUBLIC_API_URL=https://api.votredomaine.fr
 ```
 
-> **Important** : `PUBLIC_API_URL` est lu par le navigateur (carte MapLibre, recherche).  
-> Sans reverse proxy, en accès direct IP : `http://IP:3000` (HTTP seulement, à éviter en vrai prod).
+> **Important** : `PUBLIC_API_URL` est injectée **au build** de l’image `web` (carte, recherche).  
+> Sans reverse proxy : `http://IP.DU.VPS:3000` — **pas** `127.0.0.1` ni `localhost`.  
+> Après chaque changement : `./deploy.sh --build --up`.
 
 ### Persistance des données
 

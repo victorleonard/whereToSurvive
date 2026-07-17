@@ -30,6 +30,10 @@ services:
   web:
     build:
       context: ./apps/web
+      args:
+        API_URL: http://api:3000
+        # Figé au build pour la carte / recherche navigateur — rebuild si changé
+        PUBLIC_API_URL: ${PUBLIC_API_URL:-http://127.0.0.1:3000}
     ports:
       - "${WEB_PORT:-4321}:4321"
     environment:
@@ -37,6 +41,7 @@ services:
       PORT: "4321"
       NODE_ENV: production
       API_URL: "http://api:3000"
+      PUBLIC_API_URL: ${PUBLIC_API_URL:-http://127.0.0.1:3000}
     depends_on:
       api:
         condition: service_healthy

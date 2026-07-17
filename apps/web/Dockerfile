@@ -9,7 +9,11 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY package.json astro.config.mjs tsconfig.json ./
 COPY public ./public
 COPY src ./src
-ENV API_URL=http://api:3000
+# API_URL = SSR (réseau Docker). PUBLIC_API_URL = navigateur (IP/domaine public).
+ARG API_URL=http://api:3000
+ARG PUBLIC_API_URL=http://127.0.0.1:3000
+ENV API_URL=$API_URL
+ENV PUBLIC_API_URL=$PUBLIC_API_URL
 RUN npm run build
 
 FROM node:22-alpine AS runner

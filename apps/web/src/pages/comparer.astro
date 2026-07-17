@@ -1,0 +1,368 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro'
+
+const initial = Astro.url.searchParams.get('insee') ?? ''
+const initialHorizon = Astro.url.searchParams.get('horizon') ?? '2050'
+---
+
+<BaseLayout
+  title="Comparer des communes — Où Vivre Demain"
+  description="Comparez l’indice de risque climatique de 2 à 4 communes françaises aux horizons 2030 et 2050."
+>
+  <section
+    class="section compare-page"
+    style="padding-top: 2rem;"
+    data-compare
+    data-initial={initial}
+    data-horizon={initialHorizon === '2030' ? '2030' : '2050'}
+  >
+    <p class="eyebrow">Comparaison</p>
+    <h2>Comparer des communes</h2>
+    <p class="lede">
+      Choisis 2 à 4 communes. Deux lectures séparées : Climat (change avec
+      l’horizon) et Sol &amp; bâti (stable). Plus le score est élevé, plus
+      l’exposition relative est forte.
+    </p>
+
+    <div class="horizon-toggle horizon-toggle-page" role="group" aria-label="Horizon climatique">
+      <button type="button" data-compare-horizon="2030">2030</button>
+      <button type="button" data-compare-horizon="2050">2050</button>
+    </div>
+
+    <div class="compare-picker">
+      <label class="search-box">
+        <span class="filter-label"><span>Ajouter une commune</span></span>
+        <input
+          type="search"
+          placeholder="Ex. Lyon, Brest, 75056…"
+          data-compare-search
+          autocomplete="off"
+        />
+        <ul class="search-results" data-compare-results hidden></ul>
+      </label>
+
+      <ul class="compare-selected" data-compare-selected></ul>
+      <p class="map-status" data-compare-status>Ajoute au moins 2 communes.</p>
+    </div>
+
+    <div class="compare-table-wrap" data-compare-table hidden></div>
+  </section>
+</BaseLayout>
+
+<script>
+  import { HAZARD_LABELS, HORIZON_PERIODS, CLIMATE_KEYS, PLACE_KEYS } from '../lib/api'
+
+  const MAX = 4
+  const ROOT = document.querySelector('[data-compare]')
+  if (!(ROOT instanceof HTMLElement)) throw new Error('Compare root missing')
+
+  const apiBase =
+    import.meta.env.PUBLIC_API_URL ??
+    'http://127.0.0.1:3000'
+
+  const searchInput = ROOT.querySelector('[data-compare-search]')
+  const searchResults = ROOT.querySelector('[data-compare-results]')
+  const selectedList = ROOT.querySelector('[data-compare-selected]')
+  const status = ROOT.querySelector('[data-compare-status]')
+  const tableWrap = ROOT.querySelector('[data-compare-table]')
+
+  if (
+    !(searchInput instanceof HTMLInputElement) ||
+    !(searchResults instanceof HTMLElement) ||
+    !(selectedList instanceof HTMLElement) ||
+    !(status instanceof HTMLElement) ||
+    !(tableWrap instanceof HTMLElement)
+  ) {
+    throw new Error('Compare UI incomplete')
+  }
+
+  /** @type {{ insee: string, name: string, region?: string, score?: number }[]} */
+  let selected = []
+  /** @type {'2030' | '2050'} */
+  let activeHorizon = ROOT.dataset.horizon === '2030' ? '2030' : '2050'
+
+  function setHorizonButtons() {
+    for (const btn of ROOT.querySelectorAll('[data-compare-horizon]')) {
+      if (!(btn instanceof HTMLButtonElement)) continue
+      btn.classList.toggle('is-active', btn.dataset.compareHorizon === activeHorizon)
+    }
+  }
+
+  const initial = (ROOT.dataset.initial ?? '')
+    .split(',')
+    .map((c) => c.trim())
+    .filter(Boolean)
+
+  function syncUrl() {
+    const codes = selected.map((c) => c.insee).join(',')
+    const url = new URL(window.location.href)
+    if (codes) url.searchParams.set('insee', codes)
+    else url.searchParams.delete('insee')
+    url.searchParams.set('horizon', activeHorizon)
+    window.history.replaceState({}, '', url)
+  }
+
+  function communeHref(insee) {
+    return `/commune/${insee}?horizon=${activeHorizon}`
+  }
+
+  function renderSelected() {
+    selectedList.innerHTML = selected
+      .map(
+        (c) => `
+        <li>
+          <span>
+            <strong>${c.name}</strong>
+            <small>${c.insee}${c.region ? ` · ${c.region}` : ''}</small>
+          </span>
+          <button type="button" data-remove="${c.insee}" aria-label="Retirer ${c.name}">×</button>
+        </li>
+      `,
+      )
+      .join('')
+
+    for (const btn of selectedList.querySelectorAll('[data-remove]')) {
+      btn.addEventListener('click', () => {
+        const insee = btn.getAttribute('data-remove')
+        selected = selected.filter((c) => c.insee !== insee)
+        syncUrl()
+        renderSelected()
+        void refreshCompare()
+      })
+    }
+  }
+
+  async function refreshCompare() {
+    if (selected.length < 2) {
+      tableWrap.hidden = true
+      tableWrap.innerHTML = ''
+      status.textContent =
+        selected.length === 0
+          ? 'Ajoute au moins 2 communes.'
+          : 'Ajoute encore une commune pour comparer.'
+      return
+    }
+
+    if (selected.length > MAX) {
+      status.textContent = `Maximum ${MAX} communes.`
+      return
+    }
+
+    status.textContent = 'Chargement…'
+    const codes = selected.map((c) => c.insee).join(',')
+    try {
+      const res = await fetch(
+        `${apiBase}/compare?insee=${encodeURIComponent(codes)}&horizon=${activeHorizon}`,
+      )
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      const results = (data.results ?? []).filter((r) => !r.error)
+      if (results.length < 2) {
+        status.textContent =
+          'Pas assez de communes trouvées pour cet horizon (lancez l’ETL 2030 si besoin).'
+        tableWrap.hidden = true
+        return
+      }
+
+      selected = selected.map((c) => {
+        const found = results.find((r) => r.insee === c.insee)
+        return found
+          ? {
+              insee: found.insee,
+              name: found.name,
+              region: found.region,
+              score: found.scoreClimate ?? found.score,
+            }
+          : c
+      })
+      renderSelected()
+
+      const climateOf = (r) => Number(r.scoreClimate ?? r.score ?? 0)
+      const placeOf = (r) => Number(r.scorePlace ?? 0)
+      const ranked = [...results].sort((a, b) => climateOf(a) - climateOf(b))
+      const best = ranked[0]?.insee
+
+      const climateHazardRows = CLIMATE_KEYS.map((key) => [
+        HAZARD_LABELS[key],
+        ...results.map((r) => String(r.hazards?.[key] ?? '—')),
+      ])
+      const placeHazardRows = PLACE_KEYS.map((key) => [
+        HAZARD_LABELS[key],
+        ...results.map((r) => String(r.hazards?.[key] ?? '—')),
+      ])
+
+      const rows = [
+        ['Score Climat', ...results.map((r) => String(climateOf(r)))],
+        ...climateHazardRows,
+        ['Score Sol & bâti', ...results.map((r) => String(placeOf(r)))],
+        ...placeHazardRows,
+      ]
+
+      const placeRowIndex = 1 + climateHazardRows.length
+
+      tableWrap.innerHTML = `
+        <p class="compare-verdict">
+          Horizon ${activeHorizon} (${HORIZON_PERIODS[activeHorizon]}) · Climat le moins risqué :
+          <strong>${ranked[0].name}</strong> (${climateOf(ranked[0])}/100)
+          ${ranked.length > 1 ? `· plus exposé : <strong>${ranked[ranked.length - 1].name}</strong> (${climateOf(ranked[ranked.length - 1])}/100)` : ''}
+        </p>
+        <table class="compare-table">
+          <thead>
+            <tr>
+              <th scope="col">Indicateur</th>
+              ${results
+                .map(
+                  (r) =>
+                    `<th scope="col"${r.insee === best ? ' class="is-best"' : ''}><a href="${communeHref(r.insee)}">${r.name}</a></th>`,
+                )
+                .join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${rows
+              .map(
+                (row, i) => `
+              <tr class="${i === 0 || i === placeRowIndex ? 'is-total' : ''}${i === placeRowIndex ? ' is-place-block' : ''}">
+                ${row
+                  .map((cell, j) => {
+                    if (j === 0) return `<th scope="row">${cell}</th>`
+                    const values = row.slice(1).map(Number)
+                    const n = Number(cell)
+                    const isBest = Number.isFinite(n) && n === Math.min(...values.filter(Number.isFinite))
+                    return `<td${isBest ? ' class="is-best"' : ''}>${cell}</td>`
+                  })
+                  .join('')}
+              </tr>
+            `,
+              )
+              .join('')}
+          </tbody>
+        </table>
+      `
+      tableWrap.hidden = false
+      status.textContent = `${results.length} communes · horizon ${activeHorizon} · plus bas = moins de risque`
+    } catch (error) {
+      console.error(error)
+      status.textContent = `Erreur : ${error instanceof Error ? error.message : 'inconnue'}`
+      tableWrap.hidden = true
+    }
+  }
+
+  /** @type {Map<string, { insee: string, name: string, region?: string, score?: number }>} */
+  const searchIndex = new Map()
+
+  function addCommune(item) {
+    if (selected.some((c) => c.insee === item.insee)) return
+    if (selected.length >= MAX) {
+      status.textContent = `Maximum ${MAX} communes.`
+      return
+    }
+    selected.push({
+      insee: item.insee,
+      name: item.name,
+      region: item.region,
+      score: item.score,
+    })
+    searchInput.value = ''
+    searchResults.hidden = true
+    searchResults.innerHTML = ''
+    syncUrl()
+    renderSelected()
+    void refreshCompare()
+  }
+
+  let searchTimer = 0
+  searchInput.addEventListener('input', () => {
+    window.clearTimeout(searchTimer)
+    searchTimer = window.setTimeout(async () => {
+      const q = searchInput.value.trim()
+      if (q.length < 2) {
+        searchResults.hidden = true
+        searchResults.innerHTML = ''
+        return
+      }
+      try {
+        const res = await fetch(
+          `${apiBase}/communes/search?q=${encodeURIComponent(q)}&horizon=${activeHorizon}`,
+        )
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const data = await res.json()
+        const results = data.results ?? []
+        searchIndex.clear()
+        for (const item of results) searchIndex.set(item.insee, item)
+        if (!results.length) {
+          searchResults.innerHTML = '<li class="search-empty">Aucun résultat</li>'
+          searchResults.hidden = false
+          return
+        }
+        searchResults.innerHTML = results
+          .slice(0, 8)
+          .map(
+            (item) => `
+            <li>
+              <button type="button" data-add="${item.insee}">
+                <strong>${item.name}</strong>
+                <span>${item.region} · risque ${item.score}/100</span>
+              </button>
+            </li>
+          `,
+          )
+          .join('')
+        searchResults.hidden = false
+        for (const btn of searchResults.querySelectorAll('[data-add]')) {
+          btn.addEventListener('click', () => {
+            const code = btn.getAttribute('data-add')
+            const item = code ? searchIndex.get(code) : null
+            if (item) addCommune(item)
+          })
+        }
+      } catch (error) {
+        console.error(error)
+      }
+    }, 220)
+  })
+
+  for (const btn of ROOT.querySelectorAll('[data-compare-horizon]')) {
+    btn.addEventListener('click', () => {
+      if (!(btn instanceof HTMLButtonElement)) return
+      const next = btn.dataset.compareHorizon === '2030' ? '2030' : '2050'
+      if (next === activeHorizon) return
+      activeHorizon = next
+      setHorizonButtons()
+      syncUrl()
+      void refreshCompare()
+    })
+  }
+
+  setHorizonButtons()
+  syncUrl()
+
+  if (initial.length) {
+    ;(async () => {
+      for (const code of initial.slice(0, MAX)) {
+        try {
+          const res = await fetch(
+            `${apiBase}/communes/${code}?horizon=${activeHorizon}`,
+          )
+          if (!res.ok) continue
+          const item = await res.json()
+          if (!selected.some((c) => c.insee === item.insee)) {
+            selected.push({
+              insee: item.insee,
+              name: item.name,
+              region: item.region,
+              score: item.score,
+            })
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+      renderSelected()
+      syncUrl()
+      void refreshCompare()
+    })()
+  } else {
+    renderSelected()
+  }
+</script>

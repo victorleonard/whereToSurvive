@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.astro/
+.env
+.env.local
+*.log
+.DS_Store
+coverage/
+pgdata/
+.data/
+.venv-etl/
+data/*
+!data/.gitkeep
+!data/.gitignore
+__pycache__/
+*.pyc

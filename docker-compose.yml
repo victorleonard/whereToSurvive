@@ -1,0 +1,95 @@
+services:
+  api:
+    build:
+      context: ./apps/api
+    ports:
+      - "${API_PORT:-3000}:3000"
+    environment:
+      PORT: "3000"
+      NODE_ENV: production
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-wheretosurvive}:${POSTGRES_PASSWORD:-wheretosurvive}@db:5432/${POSTGRES_DB:-wheretosurvive}"
+      REDIS_URL: "redis://redis:6379"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./apps/web
+    ports:
+      - "${WEB_PORT:-4321}:4321"
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "4321"
+      NODE_ENV: production
+      API_URL: "http://api:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-wheretosurvive}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wheretosurvive}
+      POSTGRES_DB: ${POSTGRES_DB:-wheretosurvive}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    # Bind mount : survit à docker compose down / rebuild (pas un volume Docker anonyme)
+    # VPS : DATA_ROOT=/projets/@data → /projets/@data/wheretosurvive/postgres
+    volumes:
+      - ${POSTGRES_DATA_DIR:-./.data/wheretosurvive/postgres}:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-wheretosurvive} -d ${POSTGRES_DB:-wheretosurvive}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - ${REDIS_DATA_DIR:-./.data/wheretosurvive/redis}:/data
+    restart: unless-stopped
+
+  # Profil etl : chargement données (pas démarré par défaut)
+  etl:
+    profiles: ["etl"]
+    build:
+      context: .
+      dockerfile: apps/api/etl-python/Dockerfile
+    environment:
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-wheretosurvive}:${POSTGRES_PASSWORD:-wheretosurvive}@db:5432/${POSTGRES_DB:-wheretosurvive}"
+      DRIAS_ENSEMBLE: ${DRIAS_ENSEMBLE:-1}
+      DRIAS_SKIP_EXISTING: ${DRIAS_SKIP_EXISTING:-1}
+      DRIAS_FORCE: ${DRIAS_FORCE:-0}
+      ETL_LIMIT: ${ETL_LIMIT:-}
+      ETL_HORIZON: ${ETL_HORIZON:-2050}
+      DRIAS_CHECKPOINT: /data/drias-checkpoint-{horizon}.jsonl
+    volumes:
+      - ${ETL_DATA_DIR:-./.data/wheretosurvive/etl}:/data
+    depends_on:
+      db:
+        condition: service_healthy

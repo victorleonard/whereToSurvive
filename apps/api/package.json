@@ -1,0 +1,36 @@
+{
+  "name": "@wheretosurvive/api",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/db/migrate.ts",
+    "db:seed": "tsx src/db/seed.ts",
+    "db:setup": "tsx src/db/migrate.ts && tsx src/db/seed.ts",
+    "import:communes": "tsx src/etl/importCommunes.ts",
+    "etl:climate": "tsx src/etl/runClimateEtl.ts",
+    "etl:drias": "bash etl-python/run.sh",
+    "etl:regulatory": "tsx src/etl/blendRegulatory.ts",
+    "etl:bdiff": "tsx src/etl/importBdiff.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.14.4",
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.8.3",
+    "ioredis": "^5.11.1",
+    "postgres": "^3.4.9",
+    "tsx": "^4.20.3",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.32",
+    "drizzle-kit": "^0.31.10",
+    "typescript": "^5.8.3"
+  }
+}

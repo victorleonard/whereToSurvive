@@ -1,0 +1,22 @@
+{
+  "name": "@wheretosurvive/web",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "start": "node ./dist/server/entry.mjs",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/node": "^11.0.2",
+    "@lucide/astro": "^1.25.0",
+    "astro": "^7.1.0",
+    "maplibre-gl": "^5.24.0"
+  }
+}

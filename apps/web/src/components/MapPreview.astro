@@ -1,0 +1,966 @@
+---
+import CloudSun from '@lucide/astro/icons/cloud-sun'
+import House from '@lucide/astro/icons/house'
+
+const apiBase =
+  import.meta.env.PUBLIC_API_URL ??
+  'http://127.0.0.1:3000'
+
+const climateHazards = [
+  { key: 'heat', label: 'Canicule' },
+  { key: 'flood', label: 'Inondation' },
+  { key: 'coastal', label: 'Littoral' },
+  { key: 'drought', label: 'Sécheresse' },
+  { key: 'wildfire', label: 'Feux' },
+]
+
+const placeHazards = [
+  { key: 'clay', label: 'Argiles' },
+  { key: 'radon', label: 'Radon' },
+  { key: 'seismic', label: 'Séisme' },
+  { key: 'cavity', label: 'Cavités' },
+]
+
+/** Profils uniquement pour le mode Climat */
+const climateProfiles = [
+  {
+    id: 'balanced',
+    label: 'Équilibré',
+    hint: 'Tous les aléas climatiques',
+  },
+  {
+    id: 'heat',
+    label: 'Chaleur',
+    hint: 'Priorité canicule et feux',
+  },
+  {
+    id: 'water',
+    label: 'Eau',
+    hint: 'Priorité inondation, littoral et sécheresse',
+  },
+]
+---
+
+<div class="explorer" data-explorer data-api-base={apiBase}>
+  <div class="explorer-toolbar">
+    <div class="explorer-toolbar-filters">
+      <div class="mode-toggle" role="group" aria-label="Mode d’exploration">
+        <button type="button" class="is-active" data-score-family="climate">
+          <CloudSun class="mode-toggle-icon" size={16} stroke-width={2} aria-hidden="true" />
+          <span>Climat</span>
+        </button>
+        <button type="button" data-score-family="place">
+          <House class="mode-toggle-icon" size={16} stroke-width={2} aria-hidden="true" />
+          <span>Sol &amp; bâti</span>
+        </button>
+      </div>
+      <div
+        class="horizon-toggle"
+        data-horizon-block
+        role="group"
+        aria-label="Horizon climatique"
+      >
+        <button type="button" data-horizon="2030">2030</button>
+        <button type="button" class="is-active" data-horizon="2050">2050</button>
+      </div>
+    </div>
+
+    <label class="search-box explorer-search">
+      <span class="visually-hidden">Rechercher une commune</span>
+      <input
+        type="search"
+        placeholder="Rechercher une commune…"
+        data-commune-search
+        autocomplete="off"
+      />
+      <ul class="search-results" data-search-results hidden></ul>
+    </label>
+
+    <div class="explorer-toolbar-meta">
+      <p class="map-status" data-map-status>Chargement…</p>
+      <button
+        type="button"
+        class="map-fullscreen-btn"
+        data-map-fullscreen
+        aria-pressed="false"
+        title="Plein écran"
+      >
+        <span data-fullscreen-label>Plein écran</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="explorer-stage">
+    <div class="map-shell">
+      <div
+        class="map-canvas"
+        id="communes-map"
+        aria-label="Carte des communes"
+      ></div>
+      <div class="map-legend" aria-hidden="true">
+        <span>Faible</span>
+        <span class="map-legend-bar"></span>
+        <span>Élevé</span>
+      </div>
+    </div>
+
+    <aside class="rank-panel" data-rank-panel data-rank-order="asc">
+      <div class="rank-head">
+        <div class="rank-head-top">
+          <div class="rank-heading">
+            <p class="eyebrow">Classement</p>
+            <p class="rank-title" data-rank-title>Climat</p>
+            <p class="rank-mode-blurb" data-mode-blurb>
+              Projections climatiques.
+            </p>
+          </div>
+          <div class="rank-order">
+            <p class="rank-control-label">Ordre</p>
+            <div class="rank-mode" role="group" aria-label="Ordre du classement">
+              <button type="button" class="is-active" data-rank-order="asc">
+                Faible
+              </button>
+              <button type="button" data-rank-order="desc">Élevé</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="rank-controls">
+          <div class="rank-control" data-profile-block>
+            <p class="rank-control-label">Priorité</p>
+            <div class="profile-toggle" role="group" aria-label="Profil climatique">
+              {climateProfiles.map((profile) => (
+                <button
+                  type="button"
+                  class:list={[{ 'is-active': profile.id === 'balanced' }]}
+                  data-profile={profile.id}
+                  title={profile.hint}
+                >
+                  {profile.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div class="rank-control">
+            <p class="rank-control-label">Aléa</p>
+            <div class="rank-shortcuts" role="tablist" aria-label="Filtrer par aléa">
+              <button
+                type="button"
+                role="tab"
+                aria-selected="true"
+                class="is-active"
+                data-rank-sector=""
+              >
+                Score
+              </button>
+              {climateHazards.map((hazard) => (
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected="false"
+                  data-rank-sector={hazard.key}
+                  data-hazard-family="climate"
+                >
+                  {hazard.label}
+                </button>
+              ))}
+              {placeHazards.map((hazard) => (
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected="false"
+                  data-rank-sector={hazard.key}
+                  data-hazard-family="place"
+                  hidden
+                >
+                  {hazard.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+      <ol class="rank-list" data-rank-list></ol>
+    </aside>
+  </div>
+</div>
+
+<script>
+  import maplibregl from 'maplibre-gl'
+  import 'maplibre-gl/dist/maplibre-gl.css'
+
+  /** Profils climat uniquement (poids sol & bâti = 0) */
+  const PROFILE_WEIGHTS = {
+    balanced: {
+      heat: 0.26,
+      flood: 0.26,
+      coastal: 0.15,
+      drought: 0.18,
+      wildfire: 0.15,
+      clay: 0,
+      radon: 0,
+      seismic: 0,
+      cavity: 0,
+    },
+    heat: {
+      heat: 0.45,
+      flood: 0.1,
+      coastal: 0.05,
+      drought: 0.1,
+      wildfire: 0.3,
+      clay: 0,
+      radon: 0,
+      seismic: 0,
+      cavity: 0,
+    },
+    water: {
+      heat: 0.08,
+      flood: 0.35,
+      coastal: 0.25,
+      drought: 0.27,
+      wildfire: 0.05,
+      clay: 0,
+      radon: 0,
+      seismic: 0,
+      cavity: 0,
+    },
+  }
+
+  const PLACE_WEIGHTS = {
+    heat: 0,
+    flood: 0,
+    coastal: 0,
+    drought: 0,
+    wildfire: 0,
+    clay: 0.34,
+    radon: 0.24,
+    seismic: 0.24,
+    cavity: 0.18,
+  }
+
+  const PROFILE_LABELS = {
+    balanced: 'Équilibré',
+    heat: 'Chaleur',
+    water: 'Eau',
+  }
+
+  const MODE_BLURB = {
+    climate: 'Projections climatiques.',
+    place: 'Risques du terrain et du logement aujourd’hui.',
+  }
+
+  const HAZARD_LABELS = {
+    heat: 'Canicule',
+    flood: 'Inondation',
+    coastal: 'Littoral',
+    drought: 'Sécheresse',
+    wildfire: 'Feux',
+    clay: 'Argiles',
+    radon: 'Radon',
+    seismic: 'Séisme',
+    cavity: 'Cavités',
+  }
+
+  const explorer = document.querySelector('[data-explorer]')
+  const container = document.getElementById('communes-map')
+  const status = document.querySelector('[data-map-status]')
+  const rankList = document.querySelector('[data-rank-list]')
+  const rankPanel = document.querySelector('[data-rank-panel]')
+  const rankTitle = document.querySelector('[data-rank-title]')
+  const searchInput = document.querySelector('[data-commune-search]')
+  const searchResults = document.querySelector('[data-search-results]')
+
+  if (!explorer || !container || !status || !rankList) {
+    throw new Error('Explorer UI incomplete')
+  }
+
+  const apiBase =
+    explorer.dataset.apiBase ||
+    'http://127.0.0.1:3000'
+
+  /** @type {keyof typeof PROFILE_WEIGHTS} */
+  let activeProfile = 'balanced'
+  /** @type {'climate' | 'place'} */
+  let activeScoreFamily = 'climate'
+  /** @type {string} */
+  let activeSector = ''
+  /** @type {'asc' | 'desc'} */
+  let rankOrder = 'asc'
+  /** @type {'2030' | '2050'} */
+  let activeHorizon = '2050'
+  /** @type {GeoJSON.Feature[]} */
+  let lastFeatures = []
+
+  /** @type {string} */
+  let hoveredInsee = ''
+  /** @type {import('maplibre-gl').Map | null} */
+  let mapInstance = null
+
+  function setHorizonButtons() {
+    for (const btn of explorer.querySelectorAll('[data-horizon]')) {
+      if (!(btn instanceof HTMLButtonElement)) continue
+      btn.classList.toggle('is-active', btn.dataset.horizon === activeHorizon)
+    }
+  }
+
+  function setProfileButtons() {
+    for (const btn of explorer.querySelectorAll('[data-profile]')) {
+      if (!(btn instanceof HTMLButtonElement)) continue
+      btn.classList.toggle('is-active', btn.dataset.profile === activeProfile)
+    }
+  }
+
+  function communeHref(insee) {
+    return `/commune/${insee}?horizon=${activeHorizon}`
+  }
+
+  function currentWeights() {
+    if (activeScoreFamily === 'place') return { ...PLACE_WEIGHTS }
+    return { ...PROFILE_WEIGHTS[activeProfile] }
+  }
+
+  function weightsQuery(weights) {
+    const params = new URLSearchParams()
+    for (const [key, value] of Object.entries(weights)) {
+      params.set(`w_${key}`, String(value))
+    }
+    params.set('limit', '200')
+    params.set('horizon', activeHorizon)
+    return params
+  }
+
+  function familyScoreProp() {
+    return activeScoreFamily === 'place' ? 'scorePlace' : 'scoreClimate'
+  }
+
+  function familyLabel() {
+    return activeScoreFamily === 'place' ? 'Sol & bâti' : 'Climat'
+  }
+
+  function featureScore(feature) {
+    const props = feature.properties ?? {}
+    if (activeSector && props[activeSector] != null) {
+      return Number(props[activeSector])
+    }
+    const prop = familyScoreProp()
+    if (props[prop] != null) return Number(props[prop])
+    return Number(props.score ?? 0)
+  }
+
+  function scoreTone(value) {
+    if (value >= 65) return 'is-high'
+    if (value >= 40) return 'is-mid'
+    return 'is-low'
+  }
+
+  function findFeatureByInsee(insee) {
+    const id = String(insee)
+    return (
+      lastFeatures.find((f) => String(f.properties?.insee ?? '') === id) ?? null
+    )
+  }
+
+  function clearMapHighlight() {
+    hoveredInsee = ''
+    const map = mapInstance
+    if (!map?.getLayer('communes-highlight')) return
+    map.setFilter('communes-highlight', [
+      '==',
+      ['to-string', ['get', 'insee']],
+      '',
+    ])
+  }
+
+  function highlightOnMap(insee, { pan = true } = {}) {
+    const map = mapInstance
+    if (!map?.getLayer('communes-highlight')) return
+
+    hoveredInsee = insee || ''
+    map.setFilter('communes-highlight', [
+      '==',
+      ['to-string', ['get', 'insee']],
+      String(hoveredInsee),
+    ])
+
+    if (!pan || !hoveredInsee) return
+    const feature = findFeatureByInsee(hoveredInsee)
+    if (!feature || feature.geometry?.type !== 'Point') return
+
+    const coords = feature.geometry.coordinates
+    const point = map.project(coords)
+    const canvas = map.getCanvas()
+    const padX = canvas.clientWidth * 0.12
+    const padY = canvas.clientHeight * 0.12
+    const offscreen =
+      point.x < padX ||
+      point.y < padY ||
+      point.x > canvas.clientWidth - padX ||
+      point.y > canvas.clientHeight - padY
+
+    if (offscreen) {
+      map.easeTo({
+        center: coords,
+        duration: 450,
+        essential: true,
+      })
+    }
+  }
+
+  function syncModeUi() {
+    for (const btn of explorer.querySelectorAll('[data-score-family]')) {
+      if (!(btn instanceof HTMLButtonElement)) continue
+      btn.classList.toggle(
+        'is-active',
+        btn.dataset.scoreFamily === activeScoreFamily,
+      )
+    }
+
+    const horizonBlock = explorer.querySelector('[data-horizon-block]')
+    if (horizonBlock instanceof HTMLElement) {
+      const showHorizon = activeScoreFamily === 'climate'
+      horizonBlock.hidden = !showHorizon
+      horizonBlock.setAttribute('aria-hidden', showHorizon ? 'false' : 'true')
+    }
+
+    const profileBlock = explorer.querySelector('[data-profile-block]')
+    if (profileBlock instanceof HTMLElement) {
+      const showProfiles =
+        activeScoreFamily === 'climate' && !activeSector
+      profileBlock.hidden = !showProfiles
+      profileBlock.setAttribute(
+        'aria-hidden',
+        showProfiles ? 'false' : 'true',
+      )
+    }
+
+    const blurb = explorer.querySelector('[data-mode-blurb]')
+    if (blurb instanceof HTMLElement) {
+      blurb.textContent = MODE_BLURB[activeScoreFamily]
+    }
+
+    for (const btn of explorer.querySelectorAll('[data-hazard-family]')) {
+      if (!(btn instanceof HTMLButtonElement)) continue
+      const show = btn.dataset.hazardFamily === activeScoreFamily
+      btn.hidden = !show
+      if (!show && btn.dataset.rankSector === activeSector) {
+        activeSector = ''
+      }
+    }
+
+    for (const btn of explorer.querySelectorAll('[data-rank-sector]')) {
+      if (!(btn instanceof HTMLButtonElement)) continue
+      const isScore = !btn.dataset.rankSector
+      const selected = isScore
+        ? !activeSector
+        : btn.dataset.rankSector === activeSector
+      btn.classList.toggle('is-active', selected)
+      btn.setAttribute('aria-selected', selected ? 'true' : 'false')
+    }
+  }
+
+  function updateRankTitle() {
+    if (!(rankTitle instanceof HTMLElement)) return
+    if (activeSector) {
+      rankTitle.textContent = HAZARD_LABELS[activeSector] ?? activeSector
+    } else if (activeScoreFamily === 'climate') {
+      rankTitle.textContent = `Climat · ${PROFILE_LABELS[activeProfile]}`
+    } else {
+      rankTitle.textContent = 'Sol & bâti'
+    }
+    if (rankPanel instanceof HTMLElement) {
+      rankPanel.dataset.rankOrder = rankOrder
+    }
+    syncModeUi()
+  }
+
+  function renderRanking(features) {
+    const sorted = [...features].sort((a, b) => {
+      const diff = featureScore(a) - featureScore(b)
+      return rankOrder === 'desc' ? -diff : diff
+    })
+
+    rankList.innerHTML = sorted
+      .slice(0, 25)
+      .map((feature, index) => {
+        const props = feature.properties ?? {}
+        const value = featureScore(feature)
+        const insee = String(props.insee ?? '')
+        return `
+          <li style="--i:${index}">
+            <a
+              class="rank-item"
+              href="${communeHref(insee)}"
+              data-rank-insee="${insee}"
+            >
+              <span class="pos">${String(index + 1).padStart(2, '0')}</span>
+              <span class="meta">
+                <span class="name">${props.name}</span>
+                <span class="region">${props.region}</span>
+              </span>
+              <span class="score ${scoreTone(value)}">${value}</span>
+            </a>
+          </li>
+        `
+      })
+      .join('')
+
+    for (const item of rankList.querySelectorAll('[data-rank-insee]')) {
+      if (!(item instanceof HTMLElement)) continue
+      item.addEventListener('mouseenter', () => {
+        const insee = item.dataset.rankInsee ?? ''
+        item.classList.add('is-map-hover')
+        highlightOnMap(insee)
+      })
+      item.addEventListener('mouseleave', () => {
+        item.classList.remove('is-map-hover')
+        clearMapHighlight()
+      })
+      item.addEventListener('focus', () => {
+        const insee = item.dataset.rankInsee ?? ''
+        item.classList.add('is-map-hover')
+        highlightOnMap(insee)
+      })
+      item.addEventListener('blur', () => {
+        item.classList.remove('is-map-hover')
+        clearMapHighlight()
+      })
+    }
+  }
+
+  function applySectorToMap(map) {
+    if (!map.getLayer('communes-circles')) return
+    const prop = activeSector || familyScoreProp()
+    map.setPaintProperty('communes-circles', 'circle-radius', [
+      'interpolate',
+      ['linear'],
+      ['coalesce', ['get', prop], ['get', 'score']],
+      20,
+      6,
+      80,
+      14,
+    ])
+    map.setPaintProperty('communes-circles', 'circle-color', [
+      'interpolate',
+      ['linear'],
+      ['coalesce', ['get', prop], ['get', 'score']],
+      20,
+      '#7cb518',
+      50,
+      '#c4a035',
+      80,
+      '#c45c26',
+    ])
+  }
+
+  function setActiveSector(sector, map) {
+    activeSector = sector
+    for (const btn of explorer.querySelectorAll('[data-rank-sector]')) {
+      if (!(btn instanceof HTMLButtonElement)) continue
+      const selected = btn.dataset.rankSector === sector
+      btn.classList.toggle('is-active', selected)
+      btn.setAttribute('aria-selected', selected ? 'true' : 'false')
+    }
+    updateRankTitle()
+    renderRanking(lastFeatures)
+    applySectorToMap(map)
+  }
+
+  function setRankOrder(order, map) {
+    rankOrder = order === 'desc' ? 'desc' : 'asc'
+    for (const btn of explorer.querySelectorAll('[data-rank-order]')) {
+      if (!(btn instanceof HTMLButtonElement)) continue
+      btn.classList.toggle('is-active', btn.dataset.rankOrder === rankOrder)
+    }
+    updateRankTitle()
+    renderRanking(lastFeatures)
+    applySectorToMap(map)
+  }
+
+  async function loadGeoJson(weights) {
+    const params = weightsQuery(weights)
+    const response = await fetch(`${apiBase}/geojson/communes?${params}`)
+    const text = await response.text()
+    let data
+    try {
+      data = JSON.parse(text)
+    } catch {
+      throw new Error(
+        `Réponse non-JSON (HTTP ${response.status}) — vérifie que l’API Où Vivre Demain tourne sur ${apiBase} (pas un autre projet sur :3000)`,
+      )
+    }
+    if (!response.ok) {
+      throw new Error(data.error ?? `HTTP ${response.status}`)
+    }
+    return data
+  }
+
+  async function init() {
+    const map = new maplibregl.Map({
+      container,
+      style: {
+        version: 8,
+        sources: {
+          osm: {
+            type: 'raster',
+            tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+            tileSize: 256,
+            attribution: '&copy; OpenStreetMap contributors',
+          },
+        },
+        layers: [
+          {
+            id: 'osm',
+            type: 'raster',
+            source: 'osm',
+          },
+        ],
+      },
+      center: [2.3, 46.6],
+      zoom: 4.7,
+      cooperativeGestures: true,
+    })
+
+    mapInstance = map
+
+    map.addControl(new maplibregl.NavigationControl(), 'top-right')
+
+    async function refresh() {
+      const weights = currentWeights()
+      status.textContent = 'Mise à jour…'
+
+      try {
+        const geojson = await loadGeoJson(weights)
+        lastFeatures = geojson.features ?? []
+        const source = map.getSource('communes')
+        if (source && 'setData' in source) {
+          source.setData(geojson)
+        } else {
+          map.addSource('communes', {
+            type: 'geojson',
+            data: geojson,
+          })
+
+          map.addLayer({
+            id: 'communes-circles',
+            type: 'circle',
+            source: 'communes',
+            paint: {
+              'circle-radius': [
+                'interpolate',
+                ['linear'],
+                ['get', 'score'],
+                20,
+                6,
+                80,
+                14,
+              ],
+              'circle-color': [
+                'interpolate',
+                ['linear'],
+                ['get', 'score'],
+                20,
+                '#7cb518',
+                50,
+                '#c4a035',
+                80,
+                '#c45c26',
+              ],
+              'circle-opacity': 0.82,
+              'circle-stroke-color': '#e7f2ef',
+              'circle-stroke-width': 1.5,
+            },
+          })
+
+          map.addLayer({
+            id: 'communes-highlight',
+            type: 'circle',
+            source: 'communes',
+            filter: ['==', ['get', 'insee'], ''],
+            paint: {
+              'circle-radius': 18,
+              'circle-color': '#7cb518',
+              'circle-opacity': 0.22,
+              'circle-stroke-color': '#e7f2ef',
+              'circle-stroke-width': 3,
+            },
+          })
+
+          map.on('mouseenter', 'communes-circles', () => {
+            map.getCanvas().style.cursor = 'pointer'
+          })
+
+          map.on('mouseleave', 'communes-circles', () => {
+            map.getCanvas().style.cursor = ''
+          })
+
+          map.on('click', 'communes-circles', (event) => {
+            const feature = event.features?.[0]
+            if (!feature || feature.geometry.type !== 'Point') return
+            const props = feature.properties ?? {}
+            const value = featureScore(feature)
+            const label = activeSector
+              ? HAZARD_LABELS[activeSector] ?? activeSector
+              : familyLabel()
+
+            new maplibregl.Popup({ offset: 18 })
+              .setLngLat(feature.geometry.coordinates)
+              .setHTML(
+                `<strong>${props.name}</strong><br>${props.region}<br>${
+                  activeScoreFamily === 'climate'
+                    ? `Horizon ${activeHorizon}<br>`
+                    : ''
+                }${label}: ${value}/100<br><a href="${communeHref(props.insee)}">Ouvrir la fiche</a>`,
+              )
+              .addTo(map)
+          })
+        }
+
+        applySectorToMap(map)
+        updateRankTitle()
+        renderRanking(lastFeatures)
+        if (hoveredInsee) highlightOnMap(hoveredInsee, { pan: false })
+        status.textContent = `${lastFeatures.length} communes · ${familyLabel()}${
+          activeScoreFamily === 'climate' ? ` · ${activeHorizon}` : ''
+        }`
+      } catch (error) {
+        console.error(error)
+        status.textContent = `Erreur API: ${error instanceof Error ? error.message : 'inconnue'}`
+      }
+    }
+
+    for (const btn of explorer.querySelectorAll('[data-score-family]')) {
+      btn.addEventListener('click', () => {
+        if (!(btn instanceof HTMLButtonElement)) return
+        const next = btn.dataset.scoreFamily
+        if (next !== 'climate' && next !== 'place') return
+        if (next === activeScoreFamily) return
+        activeScoreFamily = /** @type {'climate' | 'place'} */ (next)
+        activeProfile = 'balanced'
+        activeSector = ''
+        setProfileButtons()
+        setActiveSector('', map)
+        void refresh()
+      })
+    }
+
+    for (const btn of explorer.querySelectorAll('[data-profile]')) {
+      btn.addEventListener('click', () => {
+        if (!(btn instanceof HTMLButtonElement)) return
+        const next = btn.dataset.profile
+        if (!next || !(next in PROFILE_WEIGHTS) || next === activeProfile) return
+        activeProfile = /** @type {keyof typeof PROFILE_WEIGHTS} */ (next)
+        setProfileButtons()
+        setActiveSector('', map)
+        void refresh()
+      })
+    }
+
+    for (const btn of explorer.querySelectorAll('[data-horizon]')) {
+      btn.addEventListener('click', () => {
+        if (!(btn instanceof HTMLButtonElement)) return
+        const next = btn.dataset.horizon === '2030' ? '2030' : '2050'
+        if (next === activeHorizon) return
+        activeHorizon = next
+        setHorizonButtons()
+        void refresh()
+      })
+    }
+
+    for (const btn of explorer.querySelectorAll('[data-rank-sector]')) {
+      btn.addEventListener('click', () => {
+        if (!(btn instanceof HTMLButtonElement)) return
+        setActiveSector(btn.dataset.rankSector ?? '', map)
+        status.textContent = `${lastFeatures.length} communes · ${familyLabel()}${
+          activeSector
+            ? ` · ${HAZARD_LABELS[activeSector] ?? activeSector}`
+            : ''
+        }`
+      })
+    }
+
+    for (const btn of explorer.querySelectorAll('[data-rank-order]')) {
+      btn.addEventListener('click', () => {
+        if (!(btn instanceof HTMLButtonElement)) return
+        setRankOrder(btn.dataset.rankOrder === 'desc' ? 'desc' : 'asc', map)
+        status.textContent = `${lastFeatures.length} communes`
+      })
+    }
+
+    const fullscreenBtn = explorer.querySelector('[data-map-fullscreen]')
+    const fullscreenLabel = explorer.querySelector('[data-fullscreen-label]')
+    const mobileMq = window.matchMedia('(max-width: 959px)')
+
+    function isMobileViewport() {
+      return mobileMq.matches
+    }
+
+    function isNativeFullscreen() {
+      const doc = /** @type {Document & { webkitFullscreenElement?: Element | null }} */ (
+        document
+      )
+      return (
+        document.fullscreenElement === explorer ||
+        doc.webkitFullscreenElement === explorer
+      )
+    }
+
+    function isExplorerFullscreen() {
+      return (
+        isNativeFullscreen() || explorer.classList.contains('is-map-fullscreen')
+      )
+    }
+
+    function syncFullscreenUi() {
+      const active = isExplorerFullscreen()
+      document.documentElement.classList.toggle('map-fs-active', active)
+      if (fullscreenBtn instanceof HTMLButtonElement) {
+        fullscreenBtn.classList.toggle('is-active', active)
+        fullscreenBtn.setAttribute('aria-pressed', active ? 'true' : 'false')
+        fullscreenBtn.title = active ? 'Quitter le plein écran' : 'Plein écran'
+        fullscreenBtn.hidden = isMobileViewport()
+      }
+      if (fullscreenLabel instanceof HTMLElement) {
+        fullscreenLabel.textContent = active ? 'Réduire' : 'Plein écran'
+      }
+
+      // En page : Ctrl+molette. En plein écran : zoom molette direct.
+      if (active) {
+        map.cooperativeGestures?.disable()
+        map.scrollZoom.enable()
+      } else {
+        map.cooperativeGestures?.enable()
+      }
+
+      window.setTimeout(() => map.resize(), 80)
+      window.setTimeout(() => map.resize(), 320)
+    }
+
+    async function enterFullscreen() {
+      if (isMobileViewport()) return
+      const el = /** @type {HTMLElement & { webkitRequestFullscreen?: () => void }} */ (
+        explorer
+      )
+      try {
+        if (el.requestFullscreen) {
+          await el.requestFullscreen()
+          syncFullscreenUi()
+          return
+        }
+        if (typeof el.webkitRequestFullscreen === 'function') {
+          el.webkitRequestFullscreen()
+          syncFullscreenUi()
+          return
+        }
+      } catch {
+        /* fallback below */
+      }
+      explorer.classList.add('is-map-fullscreen')
+      syncFullscreenUi()
+    }
+
+    async function exitFullscreen() {
+      const doc = /** @type {Document & { webkitFullscreenElement?: Element | null, webkitExitFullscreen?: () => void }} */ (
+        document
+      )
+      try {
+        if (document.fullscreenElement) {
+          await document.exitFullscreen()
+        } else if (
+          doc.webkitFullscreenElement &&
+          typeof doc.webkitExitFullscreen === 'function'
+        ) {
+          doc.webkitExitFullscreen()
+        }
+      } catch {
+        /* ignore */
+      }
+      explorer.classList.remove('is-map-fullscreen')
+      syncFullscreenUi()
+    }
+
+    fullscreenBtn?.addEventListener('click', () => {
+      if (isMobileViewport()) return
+      if (isExplorerFullscreen()) void exitFullscreen()
+      else void enterFullscreen()
+    })
+
+    const onMobileChange = () => {
+      if (isMobileViewport()) {
+        if (isExplorerFullscreen()) void exitFullscreen()
+        else if (fullscreenBtn instanceof HTMLButtonElement) {
+          fullscreenBtn.hidden = true
+        }
+      } else if (fullscreenBtn instanceof HTMLButtonElement) {
+        fullscreenBtn.hidden = false
+      }
+      window.setTimeout(() => map.resize(), 100)
+    }
+    if (typeof mobileMq.addEventListener === 'function') {
+      mobileMq.addEventListener('change', onMobileChange)
+    } else if ('addListener' in mobileMq) {
+      mobileMq.addListener(onMobileChange)
+    }
+    onMobileChange()
+
+    document.addEventListener('fullscreenchange', syncFullscreenUi)
+    document.addEventListener('webkitfullscreenchange', syncFullscreenUi)
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && explorer.classList.contains('is-map-fullscreen')) {
+        void exitFullscreen()
+      }
+    })
+
+    let searchTimer = 0
+    searchInput?.addEventListener('input', () => {
+      window.clearTimeout(searchTimer)
+      searchTimer = window.setTimeout(async () => {
+        if (!(searchInput instanceof HTMLInputElement) || !searchResults) return
+        const q = searchInput.value.trim()
+        if (q.length < 2) {
+          searchResults.hidden = true
+          searchResults.innerHTML = ''
+          return
+        }
+
+        try {
+          const res = await fetch(
+            `${apiBase}/communes/search?q=${encodeURIComponent(q)}&horizon=${activeHorizon}`,
+          )
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+          const data = await res.json()
+          const results = data.results ?? []
+          if (!results.length) {
+            searchResults.innerHTML = '<li class="search-empty">Aucun résultat</li>'
+            searchResults.hidden = false
+            return
+          }
+          searchResults.innerHTML = results
+            .slice(0, 8)
+            .map(
+              (item) => `
+              <li>
+                <a href="${communeHref(item.insee)}">
+                  <strong>${item.name}</strong>
+                  <span>${item.region} · climat ${item.scoreClimate ?? item.score}/100</span>
+                </a>
+              </li>
+            `,
+            )
+            .join('')
+          searchResults.hidden = false
+        } catch (error) {
+          console.error(error)
+        }
+      }, 220)
+    })
+
+    map.on('load', () => {
+      setHorizonButtons()
+      setProfileButtons()
+      void refresh()
+    })
+  }
+
+  void init()
+</script>

@@ -1,0 +1,624 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro'
+import CloudSun from '@lucide/astro/icons/cloud-sun'
+import House from '@lucide/astro/icons/house'
+import {
+  climateScoreOf,
+  CLIMATE_KEYS,
+  fetchCommune,
+  fetchGeorisques,
+  HAZARD_BLURBS,
+  HAZARD_LABELS,
+  HAZARD_SOURCES,
+  HORIZON_PERIODS,
+  HORIZONS,
+  parseHorizon,
+  PLACE_KEYS,
+  placeScoreOf,
+  riskBand,
+  RISK_BAND_LABELS,
+  type GeorisquesSummary,
+  type HazardKey,
+  type CommuneScore,
+  type Horizon,
+} from '../../lib/api'
+
+const { insee } = Astro.params
+const horizon = parseHorizon(Astro.url.searchParams.get('horizon'))
+
+if (!insee) {
+  return Astro.redirect('/')
+}
+
+let commune2030: CommuneScore | null = null
+let commune2050: CommuneScore | null = null
+let georisques: GeorisquesSummary | null = null
+let error: string | null = null
+let georisquesError: string | null = null
+
+try {
+  const [c2030, c2050] = await Promise.all([
+    fetchCommune(insee, '2030'),
+    fetchCommune(insee, '2050'),
+  ])
+  commune2030 = c2030
+  commune2050 = c2050
+} catch (e) {
+  error = e instanceof Error ? e.message : 'API indisponible'
+}
+
+const commune =
+  (horizon === '2030' ? commune2030 : commune2050) ??
+  commune2050 ??
+  commune2030
+
+if (!commune && !error) {
+  return new Response(null, { status: 404, statusText: 'Commune introuvable' })
+}
+
+if (commune) {
+  try {
+    georisques = await fetchGeorisques(insee)
+  } catch (e) {
+    georisquesError =
+      e instanceof Error ? e.message : 'Géorisques indisponible'
+  }
+}
+
+const hazards = commune
+  ? (Object.keys(commune.hazards) as HazardKey[])
+  : []
+
+const hasEvolution = Boolean(commune2030 && commune2050)
+const scoreClimate = commune ? climateScoreOf(commune) : 0
+const scorePlace = commune ? placeScoreOf(commune) : 0
+const bandClimate = commune ? riskBand(scoreClimate) : null
+const bandPlace = commune ? riskBand(scorePlace) : null
+const regulatory = commune?.regulatory ?? georisques?.layers ?? null
+
+function delta(from: number, to: number) {
+  return to - from
+}
+
+function formatDelta(d: number) {
+  if (d === 0) return '0'
+  return d > 0 ? `+${d}` : String(d)
+}
+
+/** Risque ↑ = plus exposé (négatif pour l’usager) */
+function deltaTone(d: number) {
+  if (d > 0) return 'is-worse'
+  if (d < 0) return 'is-better'
+  return 'is-flat'
+}
+
+const climateDelta =
+  hasEvolution && commune2030 && commune2050
+    ? delta(climateScoreOf(commune2030), climateScoreOf(commune2050))
+    : null
+
+const climateHazardKeys = CLIMATE_KEYS.filter((key) =>
+  hazards.includes(key),
+)
+const placeHazardKeys = PLACE_KEYS.filter((key) => hazards.includes(key))
+
+const evolutionRows: Array<{
+  key: string
+  label: string
+  v2030: number
+  v2050: number
+  d: number
+}> = hasEvolution && commune2030 && commune2050
+  ? [
+      {
+        key: 'climate',
+        label: 'Score Climat',
+        v2030: climateScoreOf(commune2030),
+        v2050: climateScoreOf(commune2050),
+        d: delta(climateScoreOf(commune2030), climateScoreOf(commune2050)),
+      },
+      ...climateHazardKeys.map((key) => ({
+        key,
+        label: HAZARD_LABELS[key],
+        v2030: commune2030!.hazards[key],
+        v2050: commune2050!.hazards[key],
+        d: delta(commune2030!.hazards[key], commune2050!.hazards[key]),
+      })),
+    ]
+  : []
+
+function availableHorizons(): Horizon[] {
+  const out: Horizon[] = []
+  if (commune2030) out.push('2030')
+  if (commune2050) out.push('2050')
+  return out.length ? out : HORIZONS
+}
+
+function regulatoryFor(key: HazardKey): number | null {
+  if (!regulatory) return null
+  if (key === 'flood') return regulatory.flood
+  if (key === 'coastal') return regulatory.coastal
+  if (key === 'clay') return regulatory.clay
+  if (key === 'wildfire') return regulatory.wildfire
+  if (key === 'radon') return regulatory.radon
+  if (key === 'seismic') return regulatory.seismic
+  if (key === 'cavity') return regulatory.cavity
+  return null
+}
+
+function blendNote(key: HazardKey, finalScore: number): string | null {
+  const reg = regulatoryFor(key)
+  if (reg == null || reg <= 0) return null
+  if (
+    key === 'flood' ||
+    key === 'coastal' ||
+    key === 'clay' ||
+    key === 'radon' ||
+    key === 'seismic' ||
+    key === 'cavity'
+  ) {
+    return reg >= finalScore
+      ? `Ancré par Géorisques (plancher ${reg})`
+      : `Climat dominant · plancher réglementaire ${reg}`
+  }
+  if (key === 'wildfire') {
+    return `Part réglementaire feux : ${reg}`
+  }
+  return null
+}
+
+/** Détail d’exposition Géorisques sous chaque aléa sol & bâti (sans second score). */
+function placeExposureNote(key: HazardKey): string | null {
+  const exp = georisques?.exposure
+  if (!exp) return null
+  if (key === 'clay' && exp.clay.level !== 'none') {
+    return `RGA ${exp.clay.level}${exp.clay.label ? ` · ${exp.clay.label}` : ''}`
+  }
+  if (key === 'radon' && exp.radon?.classe) {
+    return `Potentiel radon classe ${exp.radon.classe}`
+  }
+  if (key === 'seismic' && exp.seismic?.zone) {
+    return `Zonage sismique ${exp.seismic.zone}`
+  }
+  if (key === 'cavity' && exp.cavity?.count) {
+    return `${exp.cavity.count} cavité(s) recensée(s)`
+  }
+  const layer = georisques?.layerDetails?.find((l) => l.key === key)
+  if (layer?.matched.length) {
+    return layer.matched.map((m) => m.label).join(' · ')
+  }
+  return null
+}
+
+const modeParam = Astro.url.searchParams.get('mode')
+const initialMode = modeParam === 'place' ? 'place' : 'climate'
+
+function modeHref(mode: 'climate' | 'place', h: Horizon = commune!.horizon) {
+  return `/commune/${commune!.insee}?horizon=${h}&mode=${mode}`
+}
+---
+
+<BaseLayout
+  title={commune ? `${commune.name} — Où Vivre Demain` : 'Commune — Où Vivre Demain'}
+>
+  {error && <p class="error">{error}</p>}
+
+  {commune && bandClimate && bandPlace && (
+    <section
+      class="section commune-detail"
+      style="padding-top: 2rem;"
+      data-commune-detail
+      data-mode={initialMode}
+    >
+      <p class="lede commune-meta">
+        {commune.department} · {commune.region} · INSEE {commune.insee}
+      </p>
+
+      <div class="commune-filter" data-commune-filter>
+        <h2 class="commune-filter-name">{commune.name}</h2>
+        <div class="mode-toggle" role="group" aria-label="Type de risque">
+          <button
+            type="button"
+            class:list={[{ 'is-active': initialMode === 'climate' }]}
+            data-commune-mode="climate"
+            aria-pressed={initialMode === 'climate' ? 'true' : 'false'}
+          >
+            <CloudSun class="mode-toggle-icon" size={16} stroke-width={2} aria-hidden="true" />
+            <span>Climat</span>
+          </button>
+          <button
+            type="button"
+            class:list={[{ 'is-active': initialMode === 'place' }]}
+            data-commune-mode="place"
+            aria-pressed={initialMode === 'place' ? 'true' : 'false'}
+          >
+            <House class="mode-toggle-icon" size={16} stroke-width={2} aria-hidden="true" />
+            <span>Sol &amp; bâti</span>
+          </button>
+        </div>
+        <p class="lede commune-filter-blurb" data-commune-filter-blurb>
+          {initialMode === 'climate'
+            ? 'Projections DRIAS.'
+            : 'Terrain et logement aujourd’hui.'}
+        </p>
+      </div>
+
+      <div class="cta-row commune-cta">
+        <a
+          class="btn btn-primary"
+          href={`/comparer?insee=${commune.insee}&horizon=${commune.horizon}`}
+        >
+          Comparer avec d’autres
+        </a>
+        <a class="btn btn-ghost" href="/#explorer">Retour à la carte</a>
+        <a class="btn btn-ghost" href="/methodologie">Méthodologie</a>
+      </div>
+
+      {/* ——— Mode Climat ——— */}
+      <section
+        class="commune-mode commune-mode-climate"
+        id="climat"
+        data-commune-panel="climate"
+        aria-labelledby="climate-mode-title"
+        hidden={initialMode !== 'climate'}
+      >
+        <header class="commune-mode-head">
+          <h3 id="climate-mode-title" class="commune-mode-title">Climat</h3>
+          <p class="lede commune-mode-lead">
+            Projections DRIAS — change selon l’horizon 2030 ou 2050.
+          </p>
+
+          <div
+            class="horizon-toggle horizon-toggle-page"
+            role="group"
+            aria-label="Horizon climatique"
+          >
+            {availableHorizons().map((h) => (
+              <a
+                href={modeHref('climate', h)}
+                class:list={[{ 'is-active': h === commune.horizon }]}
+                aria-current={h === commune.horizon ? 'true' : undefined}
+              >
+                {h}
+              </a>
+            ))}
+          </div>
+          <p class="lede commune-horizon-period">
+            Décennie {HORIZON_PERIODS[commune.horizon]}
+          </p>
+        </header>
+
+        <div class="commune-mode-score">
+          <div class="score-card-value-row">
+            <span class="commune-score-value">{scoreClimate}</span>
+            <span class="commune-score-denom">/ 100</span>
+          </div>
+          <p class={`risk-band risk-band-${bandClimate}`}>
+            {RISK_BAND_LABELS[bandClimate]}
+          </p>
+          {climateDelta != null && (
+            <p class="lede score-card-blurb">
+              2030 → 2050 :{' '}
+              <strong class={deltaTone(climateDelta)}>
+                {formatDelta(climateDelta)}
+              </strong>
+            </p>
+          )}
+        </div>
+
+        <h4 class="commune-mode-sub">Aléas climatiques</h4>
+        <ul class="hazard-detail-list">
+          {climateHazardKeys.map((key) => {
+            const value = commune.hazards[key]
+            const hb = riskBand(value)
+            const note = blendNote(key, value)
+            return (
+              <li class="hazard-detail">
+                <div class="hazard-detail-head">
+                  <h4>{HAZARD_LABELS[key]}</h4>
+                  <span class={`risk-band risk-band-${hb} risk-band-sm`}>
+                    {RISK_BAND_LABELS[hb]}
+                  </span>
+                </div>
+                <div class="hazard-detail-score">
+                  <strong>{value}</strong>
+                  <div class="bar">
+                    <span style={`width: ${value}%`} />
+                  </div>
+                </div>
+                <p class="hazard-detail-blurb">{HAZARD_BLURBS[key]}</p>
+                {note && <p class="hazard-detail-note">{note}</p>}
+                <p class="hazard-detail-source">Source : {HAZARD_SOURCES[key]}</p>
+              </li>
+            )
+          })}
+        </ul>
+
+        {hasEvolution && commune2030 && commune2050 && (
+          <div class="evolution-block" aria-labelledby="evolution-title">
+            <h4 id="evolution-title" class="commune-mode-sub">
+              Évolution 2030 → 2050
+            </h4>
+            <p class="lede evolution-lead">
+              Uniquement le climat — Sol &amp; bâti n’apparaît pas ici.
+            </p>
+
+            <div class="evolution-summary">
+              <div class="evolution-pill">
+                <span class="evolution-pill-label">Score Climat</span>
+                <strong class={deltaTone(climateDelta ?? 0)}>
+                  {climateDelta != null ? formatDelta(climateDelta) : '—'}
+                </strong>
+              </div>
+            </div>
+
+            <div class="evolution-table-wrap">
+              <table class="evolution-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Indicateur</th>
+                    <th scope="col">2030</th>
+                    <th scope="col">2050</th>
+                    <th scope="col">Écart</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {evolutionRows.map((row) => (
+                    <tr class:list={[{ 'is-total': row.key === 'climate' }]}>
+                      <th scope="row">{row.label}</th>
+                      <td>{row.v2030}</td>
+                      <td>{row.v2050}</td>
+                      <td class={deltaTone(row.d)}>
+                        <span class="evolution-delta-cell">
+                          {formatDelta(row.d)}
+                        </span>
+                        <span class="evolution-mini-bar" aria-hidden="true">
+                          <span
+                            class:list={[
+                              'evolution-mini-fill',
+                              deltaTone(row.d),
+                            ]}
+                            style={`width: ${Math.min(100, Math.abs(row.d) * 4)}%`}
+                          />
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {!hasEvolution && (
+          <p class="lede" style="margin: 1.25rem 0 0;">
+            Évolution 2030 / 2050 indisponible pour cette commune.
+          </p>
+        )}
+      </section>
+
+      {/* ——— Mode Sol & bâti ——— */}
+      <section
+        class="commune-mode commune-mode-place"
+        id="sol-bati"
+        data-commune-panel="place"
+        aria-labelledby="place-mode-title"
+        hidden={initialMode !== 'place'}
+      >
+        <header class="commune-mode-head">
+          <p class="eyebrow">
+            <span class="hazard-stable-badge">stable</span>
+          </p>
+          <h3 id="place-mode-title" class="commune-mode-title">
+            Sol &amp; bâti
+          </h3>
+          <p class="lede commune-mode-lead">
+            Terrain et logement aujourd’hui.
+          </p>
+        </header>
+
+        <div class="commune-mode-score">
+          <div class="score-card-value-row">
+            <span class="commune-score-value">{scorePlace}</span>
+            <span class="commune-score-denom">/ 100</span>
+          </div>
+          <p class={`risk-band risk-band-${bandPlace}`}>
+            {RISK_BAND_LABELS[bandPlace]}
+          </p>
+        </div>
+
+        <h4 class="commune-mode-sub">Aléas terrain &amp; logement</h4>
+        <ul class="hazard-detail-list">
+          {placeHazardKeys.map((key) => {
+            const value = commune.hazards[key]
+            const hb = riskBand(value)
+            const note = blendNote(key, value)
+            const exposureNote = placeExposureNote(key)
+            return (
+              <li class="hazard-detail">
+                <div class="hazard-detail-head">
+                  <h4>{HAZARD_LABELS[key]}</h4>
+                  <span class={`risk-band risk-band-${hb} risk-band-sm`}>
+                    {RISK_BAND_LABELS[hb]}
+                  </span>
+                </div>
+                <div class="hazard-detail-score">
+                  <strong>{value}</strong>
+                  <div class="bar">
+                    <span style={`width: ${value}%`} />
+                  </div>
+                </div>
+                <p class="hazard-detail-blurb">{HAZARD_BLURBS[key]}</p>
+                {exposureNote && (
+                  <p class="hazard-detail-note">{exposureNote}</p>
+                )}
+                {note && !exposureNote && (
+                  <p class="hazard-detail-note">{note}</p>
+                )}
+                <p class="hazard-detail-source">Source : {HAZARD_SOURCES[key]}</p>
+              </li>
+            )
+          })}
+        </ul>
+
+        <aside class="georisques-aside" aria-label="Annexe Géorisques">
+          <details class="georisques-details">
+            <summary class="georisques-summary">
+              <span class="georisques-summary-kicker">Annexe</span>
+              <span class="georisques-summary-title">
+                Inventaire officiel Géorisques
+              </span>
+              {georisques && (
+                <span class="georisques-summary-meta">
+                  {georisques.risks.length} risque
+                  {georisques.risks.length > 1 ? 's' : ''}
+                  {georisques.catnat.total > 0
+                    ? ` · ${georisques.catnat.total} CatNat`
+                    : ''}
+                </span>
+              )}
+            </summary>
+
+            <div class="georisques-panel">
+              <p class="lede georisques-lead">
+                Liste brute publiée par l’État — utile pour vérifier, pas pour
+                scorer. Les notes Sol &amp; bâti ci-dessus restent la référence.
+              </p>
+
+              {georisquesError && <p class="error">{georisquesError}</p>}
+
+              {georisques && (
+                <>
+                  <div class="georisques-section">
+                    <h5 class="georisques-section-title">
+                      Risques recensés
+                      <span class="georisques-count">
+                        {georisques.risks.length}
+                      </span>
+                    </h5>
+                    <p class="lede georisques-section-lead">
+                      Libellés Géorisques (peut inclure inondation, industriel,
+                      etc.).
+                    </p>
+                    {georisques.risks.length > 0 ? (
+                      <ul class="risk-list">
+                        {georisques.risks.map((r) => (
+                          <li>{r.label}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p class="lede">Aucun risque recensé.</p>
+                    )}
+                  </div>
+
+                  <div class="georisques-section">
+                    <h5 class="georisques-section-title">
+                      Arrêtés CatNat
+                      <span class="georisques-count">
+                        {georisques.catnat.recent.length}
+                        {georisques.catnat.total >
+                        georisques.catnat.recent.length
+                          ? ` / ${georisques.catnat.total}`
+                          : ''}
+                      </span>
+                    </h5>
+                    <p class="lede georisques-section-lead">
+                      Catastrophes naturelles reconnues (dates des arrêtés).
+                    </p>
+                    {georisques.catnat.recent.length > 0 ? (
+                      <ul class="catnat-list">
+                        {georisques.catnat.recent.map((c) => (
+                          <li>
+                            <strong>{c.label}</strong>
+                            {c.startDate && (
+                              <span>
+                                {' '}
+                                · {c.startDate}
+                                {c.endDate ? ` → ${c.endDate}` : ''}
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p class="lede">Aucun arrêté récent retourné.</p>
+                    )}
+                  </div>
+
+                  <p class="lede georisques-source">
+                    Source :{' '}
+                    <a
+                      href={`https://www.georisques.gouv.fr/mes-risques/connaitre-les-risques-pres-de-chez-moi/rapport?codeInsee=${commune.insee}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Ouvrir sur Géorisques
+                    </a>
+                    {georisques.cached
+                      ? ` · cache${georisques.cacheStore ? ` ${georisques.cacheStore}` : ''}`
+                      : ''}
+                  </p>
+                </>
+              )}
+            </div>
+          </details>
+        </aside>
+      </section>
+    </section>
+  )}
+</BaseLayout>
+
+{commune && (
+  <script>
+    const BLURB = {
+      climate: 'Projections DRIAS.',
+      place:
+        'Terrain et logement aujourd’hui.',
+    }
+
+    const root = document.querySelector('[data-commune-detail]')
+    if (!(root instanceof HTMLElement)) throw new Error('commune detail missing')
+
+    const blurb = root.querySelector('[data-commune-filter-blurb]')
+
+    function setMode(mode) {
+      const next = mode === 'place' ? 'place' : 'climate'
+      root.dataset.mode = next
+
+      for (const btn of root.querySelectorAll('[data-commune-mode]')) {
+        if (!(btn instanceof HTMLButtonElement)) continue
+        const active = btn.dataset.communeMode === next
+        btn.classList.toggle('is-active', active)
+        btn.setAttribute('aria-pressed', active ? 'true' : 'false')
+      }
+
+      for (const panel of root.querySelectorAll('[data-commune-panel]')) {
+        if (!(panel instanceof HTMLElement)) continue
+        panel.hidden = panel.dataset.communePanel !== next
+      }
+
+      if (blurb instanceof HTMLElement) {
+        blurb.textContent = BLURB[next]
+      }
+
+      const url = new URL(window.location.href)
+      url.searchParams.set('mode', next)
+      url.hash = next === 'place' ? 'sol-bati' : 'climat'
+      window.history.replaceState({}, '', url)
+    }
+
+    for (const btn of root.querySelectorAll('[data-commune-mode]')) {
+      btn.addEventListener('click', () => {
+        if (!(btn instanceof HTMLButtonElement)) return
+        const mode = btn.dataset.communeMode
+        if (mode !== 'climate' && mode !== 'place') return
+        setMode(mode)
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      })
+    }
+
+    const hash = window.location.hash.replace('#', '')
+    if (hash === 'sol-bati') setMode('place')
+    else if (hash === 'climat') setMode('climate')
+  </script>
+)}

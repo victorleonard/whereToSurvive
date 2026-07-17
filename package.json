@@ -1,0 +1,33 @@
+{
+  "name": "wheretosurvive",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "echo \"Lance npm run dev:api et npm run dev:web dans deux terminaux\"",
+    "dev:web": "npm run dev --workspace=@wheretosurvive/web",
+    "dev:api": "npm run dev --workspace=@wheretosurvive/api",
+    "build": "npm run build --workspace=@wheretosurvive/api && npm run build --workspace=@wheretosurvive/web",
+    "build:api": "npm run build --workspace=@wheretosurvive/api",
+    "build:web": "npm run build --workspace=@wheretosurvive/web",
+    "start:api": "npm run start --workspace=@wheretosurvive/api",
+    "typecheck": "npm run typecheck --workspace=@wheretosurvive/api",
+    "db:migrate": "npm run db:migrate --workspace=@wheretosurvive/api",
+    "db:seed": "npm run db:seed --workspace=@wheretosurvive/api",
+    "db:setup": "npm run db:setup --workspace=@wheretosurvive/api",
+    "import:communes": "npm run import:communes --workspace=@wheretosurvive/api",
+    "import:communes:all": "COMMUNE_LIMIT=all npm run import:communes --workspace=@wheretosurvive/api",
+    "etl:climate": "npm run etl:climate --workspace=@wheretosurvive/api",
+    "etl:drias": "npm run etl:drias --workspace=@wheretosurvive/api",
+    "etl:drias:2030": "ETL_HORIZON=2030 npm run etl:drias --workspace=@wheretosurvive/api",
+    "etl:drias:all": "ETL_HORIZON=all npm run etl:drias --workspace=@wheretosurvive/api",
+    "etl:regulatory": "npm run etl:regulatory --workspace=@wheretosurvive/api",
+    "etl:bdiff": "npm run etl:bdiff --workspace=@wheretosurvive/api",
+    "deploy": "./deploy.sh"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  }
+}

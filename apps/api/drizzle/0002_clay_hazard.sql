@@ -1,0 +1,1 @@
+ALTER TABLE "commune_scores" ADD COLUMN IF NOT EXISTS "clay" integer DEFAULT 0 NOT NULL;

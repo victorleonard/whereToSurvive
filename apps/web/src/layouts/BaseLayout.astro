@@ -1,0 +1,157 @@
+---
+import '../styles/global.css'
+
+interface Props {
+  title?: string
+  description?: string
+}
+
+const {
+  title = 'Où Vivre Demain',
+  description = 'Où vivre en France face au climat : comparez les communes aux horizons 2030 et 2050.',
+} = Astro.props
+
+const pathname = Astro.url.pathname
+
+const links = [
+  { href: '/#explorer', label: 'Explorer', match: '/' },
+  { href: '/comparer', label: 'Comparer', match: '/comparer' },
+  { href: '/methodologie', label: 'Méthodologie', match: '/methodologie' },
+]
+
+function isActive(match: string) {
+  if (match === '/') return pathname === '/' || pathname === ''
+  return pathname.startsWith(match)
+}
+---
+
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Manrope:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <title>{title}</title>
+  </head>
+  <body>
+    <header class="site-header" data-site-header>
+      <a class="brand" href="/">Où Vivre Demain</a>
+
+      <nav class="nav-desktop" aria-label="Navigation principale">
+        {
+          links.map((link) => (
+            <a
+              href={link.href}
+              class={isActive(link.match) ? 'is-active' : undefined}
+              aria-current={isActive(link.match) ? 'page' : undefined}
+            >
+              {link.label}
+            </a>
+          ))
+        }
+      </nav>
+
+      <button
+        type="button"
+        class="menu-toggle"
+        data-menu-toggle
+        aria-expanded="false"
+        aria-controls="site-menu"
+      >
+        <span class="visually-hidden">Menu</span>
+        <span class="menu-toggle-bars" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </span>
+      </button>
+    </header>
+
+    <div
+      class="menu-backdrop"
+      data-menu-backdrop
+      hidden
+      aria-hidden="true"
+    ></div>
+
+    <nav
+      id="site-menu"
+      class="site-menu"
+      data-site-menu
+      aria-label="Menu"
+      hidden
+    >
+      <p class="eyebrow">Menu</p>
+      <ul>
+        {
+          links.map((link) => (
+            <li>
+              <a
+                href={link.href}
+                class={isActive(link.match) ? 'is-active' : undefined}
+                aria-current={isActive(link.match) ? 'page' : undefined}
+                data-menu-link
+              >
+                {link.label}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+
+    <main>
+      <slot />
+    </main>
+    <footer class="site-footer">
+      <p>
+        <strong>Où Vivre Demain</strong> — outil informatif, ne remplace pas
+        Géorisques ni l’ERP. Sources : scores DRIAS / Explore2 + risques
+        Géorisques.
+      </p>
+    </footer>
+
+    <script>
+      const toggle = document.querySelector('[data-menu-toggle]')
+      const menu = document.querySelector('[data-site-menu]')
+      const backdrop = document.querySelector('[data-menu-backdrop]')
+      const links = document.querySelectorAll('[data-menu-link]')
+
+      if (
+        toggle instanceof HTMLButtonElement &&
+        menu instanceof HTMLElement &&
+        backdrop instanceof HTMLElement
+      ) {
+        function setOpen(open) {
+          toggle.setAttribute('aria-expanded', open ? 'true' : 'false')
+          toggle.classList.toggle('is-open', open)
+          menu.hidden = !open
+          backdrop.hidden = !open
+          document.body.classList.toggle('menu-open', open)
+        }
+
+        toggle.addEventListener('click', () => {
+          const open = toggle.getAttribute('aria-expanded') !== 'true'
+          setOpen(open)
+        })
+
+        backdrop.addEventListener('click', () => setOpen(false))
+
+        for (const link of links) {
+          link.addEventListener('click', () => setOpen(false))
+        }
+
+        window.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape') setOpen(false)
+        })
+      }
+    </script>
+  </body>
+</html>

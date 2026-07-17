@@ -1,0 +1,30 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro'
+import MapPreview from '../components/MapPreview.astro'
+---
+
+<BaseLayout title="Où Vivre Demain — climat des communes en France">
+  <section class="hero">
+    <p class="brand-hero">Où Vivre Demain</p>
+    <h1>Comparez les communes face au climat qui change.</h1>
+    <p>
+      Le climat à venir (2030 / 2050), et les risques du sol &amp; du bâti
+      aujourd’hui — pour choisir où s’installer.
+    </p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="#explorer">Explorer la carte</a>
+      <a class="btn btn-ghost" href="/comparer">Comparer des communes</a>
+      <a class="btn btn-ghost" href="/methodologie">Comprendre l’indice</a>
+    </div>
+  </section>
+
+  <section class="section" id="explorer">
+    <h2>Explorer</h2>
+    <p class="lede">
+      Carte et classement côte à côte. Indice 0–100 : plus c’est haut, plus le
+      risque est élevé.
+    </p>
+
+    <MapPreview />
+  </section>
+</BaseLayout>

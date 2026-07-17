@@ -1,0 +1,221 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro'
+import { getApiBaseUrl } from '../lib/api'
+
+interface SourceLink {
+  name: string
+  role: string
+  url: string
+}
+
+/** Libellés grand public pour les sources (évite le jargon technique). */
+const SOURCE_ROLE_PLAIN: Record<string, string> = {
+  DRIAS: 'Projections du climat en France',
+  'Explore2 / DRIAS-Eau': 'Eau, pluies et sécheresse dans le futur',
+  'RADIS (INRAE G-EAU)': 'Accès aux données climatiques de recherche',
+  Géorisques: 'Risques officiels connus aujourd’hui (État)',
+  'API Géorisques': 'Données Géorisques pour le site',
+  'CEREMA — INEC': 'Érosion du littoral',
+  BDIFF: 'Incendies de forêt recensés (quand disponible)',
+  TRACC: 'Référence nationale sur l’adaptation au changement climatique',
+  'geo.api.gouv.fr': 'Noms et localisations des communes',
+}
+
+const FALLBACK_LINKS: SourceLink[] = [
+  {
+    name: 'DRIAS',
+    role: SOURCE_ROLE_PLAIN.DRIAS,
+    url: 'https://www.drias-climat.fr/',
+  },
+  {
+    name: 'Géorisques',
+    role: SOURCE_ROLE_PLAIN.Géorisques,
+    url: 'https://www.georisques.gouv.fr/',
+  },
+  {
+    name: 'CEREMA — INEC',
+    role: SOURCE_ROLE_PLAIN['CEREMA — INEC'],
+    url: 'https://gisdata.cerema.fr/arcgis/rest/services/CH1_Erosion_c%C3%B4ti%C3%A8re/MapServer',
+  },
+  {
+    name: 'TRACC',
+    role: SOURCE_ROLE_PLAIN.TRACC,
+    url: 'https://www.ecologie.gouv.fr/politiques-publiques/trajectoire-rechauffement-reference-ladaptation-changement-climatique-tracc',
+  },
+  {
+    name: 'geo.api.gouv.fr',
+    role: SOURCE_ROLE_PLAIN['geo.api.gouv.fr'],
+    url: 'https://geo.api.gouv.fr/',
+  },
+]
+
+let apiLinks: SourceLink[] | null = null
+
+try {
+  const res = await fetch(`${getApiBaseUrl()}/methodology`)
+  if (res.ok) {
+    const data = await res.json()
+    if (Array.isArray(data?.sources?.links) && data.sources.links.length) {
+      apiLinks = data.sources.links
+    }
+  }
+} catch {
+  /* fallback ci-dessous */
+}
+
+const sourceLinks = (apiLinks ?? FALLBACK_LINKS).map((source) => ({
+  ...source,
+  role: SOURCE_ROLE_PLAIN[source.name] ?? source.role,
+}))
+
+/** Masquer les entrées trop techniques pour le grand public */
+const HIDDEN_SOURCES = new Set(['API Géorisques', 'RADIS (INRAE G-EAU)'])
+const publicSources = sourceLinks.filter((s) => !HIDDEN_SOURCES.has(s.name))
+---
+
+<BaseLayout title="Méthodologie — Où Vivre Demain">
+  <section class="section meth-page" style="padding-top: 2rem; max-width: 42rem;">
+    <h2>Comment lire les scores</h2>
+    <p class="lede">
+      Où Vivre Demain compare les communes françaises pour aider à choisir où
+      s’installer. Ce n’est pas un diagnostic immobilier ni un document officiel
+      opposable : c’est un repère pour se situer.
+    </p>
+
+    <h3 class="meth-heading">Deux regards, pas un seul mélange</h3>
+    <p>
+      On sépare volontairement ce qui vient du <strong>climat à venir</strong> et
+      ce qui vient du <strong>terrain et du logement aujourd’hui</strong>.
+    </p>
+    <ul>
+      <li>
+        <strong>Climat</strong> — canicule, inondation, littoral, sécheresse,
+        feux. Ces scores peuvent évoluer entre 2030 et 2050.
+      </li>
+      <li>
+        <strong>Sol &amp; bâti</strong> — argiles, radon, séisme, cavités. Ce
+        sont des risques d’aujourd’hui, liés au sol et au bâti : ils ne changent
+        pas quand on passe de 2030 à 2050.
+      </li>
+    </ul>
+
+    <h3 class="meth-heading">2030 et 2050, c’est quoi ?</h3>
+    <p>
+      Ce sont deux périodes futures, pour se projeter :
+    </p>
+    <ul>
+      <li><strong>2030</strong> — années autour de 2020 à 2029</li>
+      <li><strong>2050</strong> — années autour de 2040 à 2049</li>
+    </ul>
+    <p>
+      Seul le regard <strong>Climat</strong> utilise ces périodes. Sol &amp; bâti
+      reste le même, quel que soit l’horizon choisi.
+    </p>
+
+    <h3 class="meth-heading">Comment lire un score</h3>
+    <ul>
+      <li>
+        Chaque indicateur va de <strong>0 à 100</strong>. Plus le chiffre est
+        haut, plus l’exposition est forte <em>par rapport aux autres communes
+        présentes sur le site</em>.
+      </li>
+      <li>
+        Dans les classements, on met en avant les scores les plus{' '}
+        <strong>bas</strong> : ce sont en général les communes les moins
+        exposées pour le critère choisi.
+      </li>
+      <li>
+        Un score élevé n’interdit rien : c’est un signal pour regarder plus loin
+        (fiches officielles, assurance, urbanisme…).
+      </li>
+    </ul>
+
+    <h3 class="meth-heading">D’où viennent les chiffres Climat ?</h3>
+    <p>
+      Ils s’appuient surtout sur les projections climatiques françaises
+      (plateforme DRIAS), croisées quand c’est utile avec des informations déjà
+      connues de l’État (zones inondables, obligations de débroussaillement,
+      littoral…).
+    </p>
+    <ul>
+      <li><strong>Canicule</strong> — jours très chauds dans l’année</li>
+      <li><strong>Inondation</strong> — pluies projetées + zones déjà signalées</li>
+      <li><strong>Littoral</strong> — proximité de la côte et érosion / submersion</li>
+      <li><strong>Sécheresse</strong> — manque d’eau dans le sol et jours secs</li>
+      <li><strong>Feux</strong> — conditions climatiques favorables aux incendies,
+        complétées par les zones concernées aujourd’hui</li>
+    </ul>
+
+    <h3 class="meth-heading">D’où viennent les chiffres Sol &amp; bâti ?</h3>
+    <p>
+      Ils viennent principalement de <strong>Géorisques</strong>, le portail
+      officiel des risques naturels et du sous-sol :
+    </p>
+    <ul>
+      <li><strong>Argiles</strong> — sols qui gonflent ou se rétractent (fissures possibles)</li>
+      <li><strong>Radon</strong> — gaz naturel dans certaines zones</li>
+      <li><strong>Séisme</strong> — zonage réglementaire français</li>
+      <li><strong>Cavités</strong> — vides sous le sol recensés</li>
+    </ul>
+
+    <h3 class="meth-heading">Limites importantes</h3>
+    <ul>
+      <li>
+        Les scores comparent des communes entre elles sur le site : ce n’est pas
+        une note « absolue » pour toute la France entière dès aujourd’hui.
+      </li>
+      <li>
+        Une commune peut être bien placée sur le climat et plus exposée sur le
+        sol (ou l’inverse) : d’où l’intérêt de regarder les deux.
+      </li>
+      <li>
+        Pour un achat ou une construction, les documents officiels (Géorisques,
+        urbanisme, diagnostics) restent la référence.
+      </li>
+    </ul>
+
+    <h3 id="sources" class="meth-heading">Sources</h3>
+    <p class="lede" style="font-size: 0.95rem; margin-bottom: 1.25rem;">
+      Données publiques, croisées pour construire les indices du site.
+    </p>
+
+    <ul class="source-link-list">
+      {publicSources.map((source) => (
+        <li class="source-link-item">
+          <a href={source.url} target="_blank" rel="noopener noreferrer">
+            {source.name}
+          </a>
+          <p>{source.role}</p>
+          <span class="source-link-url">
+            {source.url.replace(/^https?:\/\//, '')}
+          </span>
+        </li>
+      ))}
+    </ul>
+
+    <p style="margin-top: 2rem;">
+      <a class="btn btn-primary" href="/">Retour à l’accueil</a>
+    </p>
+  </section>
+</BaseLayout>
+
+<style>
+  .meth-heading {
+    font-family: var(--font-display);
+    margin-top: 2rem;
+    margin-bottom: 0.65rem;
+  }
+
+  .meth-page ul {
+    margin: 0.75rem 0 0;
+    padding-left: 1.2rem;
+  }
+
+  .meth-page li {
+    margin: 0.4rem 0;
+  }
+
+  .meth-page p {
+    margin: 0.65rem 0 0;
+  }
+</style>

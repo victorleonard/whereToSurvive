@@ -105,15 +105,22 @@ docker compose ps
 
 ≈ 100 communes, horizons 2030 + 2050 (durée raisonnable).
 
+### Option B — Préprod (1000 communes)
+
+```bash
+./deploy.sh --up --migrate --preprod-data
+```
+
+≈ 1000 communes les plus peuplées + ETL DRIAS (horizons 2030 + 2050).  
+Override possible : `--limit 500 --etl-limit 500`.
+
 Puis ancrage réglementaire (Géorisques, etc.) :
 
 ```bash
 docker compose exec -T api npm run etl:regulatory
-# depuis l’hôte, si les scripts npm root sont configurés :
-# npm run etl:regulatory
 ```
 
-### Option B — Production nationale (long)
+### Option C — Production nationale (long)
 
 ```bash
 ./deploy.sh --up --migrate --prod-data

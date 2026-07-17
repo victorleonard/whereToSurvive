@@ -60,6 +60,7 @@ Données
 
 Raccourcis
   --prod-data          --import-all --etl-drias --etl-horizon all (très long)
+  --preprod-data       --import-sample --limit 1000 --etl-drias --etl-horizon all --etl-limit 1000
   --dev-data           --import-sample --etl-drias --etl-horizon all --etl-limit 100
 
   -h, --help           Aide
@@ -109,6 +110,14 @@ while [[ $# -gt 0 ]]; do
       IMPORT_MODE="all"
       DO_ETL_DRIAS=1
       ETL_HORIZON_VAL="all"
+      ;;
+    --preprod-data)
+      DO_IMPORT=1
+      IMPORT_MODE="sample"
+      COMMUNE_LIMIT_VAL="${COMMUNE_LIMIT_VAL:-1000}"
+      DO_ETL_DRIAS=1
+      ETL_LIMIT_VAL="${ETL_LIMIT_VAL:-1000}"
+      ETL_HORIZON_VAL="${ETL_HORIZON_VAL:-all}"
       ;;
     --dev-data)
       DO_IMPORT=1

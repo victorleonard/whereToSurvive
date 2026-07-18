@@ -836,12 +836,69 @@ html.map-fs-active body {
   position: relative;
   z-index: 3;
   flex-shrink: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.5rem;
   padding: 0.55rem 0.65rem;
   border: 1px solid rgba(231, 242, 239, 0.14);
   border-radius: 0.85rem;
   background: rgba(7, 20, 18, 0.88);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+}
+
+.explorer:fullscreen .explorer-toolbar-filters,
+.explorer:-webkit-full-screen .explorer-toolbar-filters,
+.explorer.is-map-fullscreen .explorer-toolbar-filters {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.explorer:fullscreen .explorer-toolbar-filters .mode-toggle,
+.explorer:-webkit-full-screen .explorer-toolbar-filters .mode-toggle,
+.explorer.is-map-fullscreen .explorer-toolbar-filters .mode-toggle {
+  width: 100%;
+  display: flex;
+}
+
+.explorer:fullscreen .explorer-toolbar-filters .mode-toggle button,
+.explorer:-webkit-full-screen .explorer-toolbar-filters .mode-toggle button,
+.explorer.is-map-fullscreen .explorer-toolbar-filters .mode-toggle button {
+  flex: 1 1 0;
+  min-width: 0;
+  text-align: center;
+}
+
+.explorer:fullscreen .explorer-toolbar-filters .horizon-toggle:not([hidden]),
+.explorer:-webkit-full-screen .explorer-toolbar-filters .horizon-toggle:not([hidden]),
+.explorer.is-map-fullscreen .explorer-toolbar-filters .horizon-toggle:not([hidden]) {
+  width: 100%;
+  display: flex;
+  justify-self: stretch;
+}
+
+.explorer:fullscreen .explorer-toolbar-filters .horizon-toggle[hidden],
+.explorer:-webkit-full-screen .explorer-toolbar-filters .horizon-toggle[hidden],
+.explorer.is-map-fullscreen .explorer-toolbar-filters .horizon-toggle[hidden] {
+  display: none;
+}
+
+.explorer:fullscreen .explorer-toolbar-filters .horizon-toggle button,
+.explorer:-webkit-full-screen .explorer-toolbar-filters .horizon-toggle button,
+.explorer.is-map-fullscreen .explorer-toolbar-filters .horizon-toggle button {
+  flex: 1 1 0;
+  min-width: 0;
+  text-align: center;
+}
+
+.explorer:fullscreen .explorer-toolbar-meta,
+.explorer:-webkit-full-screen .explorer-toolbar-meta,
+.explorer.is-map-fullscreen .explorer-toolbar-meta {
+  grid-column: 1 / -1;
+  justify-content: flex-end;
 }
 
 .explorer:fullscreen .explorer-stage,
@@ -901,34 +958,6 @@ html.map-fs-active body {
 
 .mode-toggle-label-short {
   display: none;
-}
-
-.explorer:fullscreen .mode-toggle-label-full,
-.explorer:-webkit-full-screen .mode-toggle-label-full,
-.explorer.is-map-fullscreen .mode-toggle-label-full {
-  display: none;
-}
-
-.explorer:fullscreen .mode-toggle-label-short,
-.explorer:-webkit-full-screen .mode-toggle-label-short,
-.explorer.is-map-fullscreen .mode-toggle-label-short {
-  display: inline;
-}
-
-.explorer:fullscreen .explorer-toolbar-filters .mode-toggle,
-.explorer:-webkit-full-screen .explorer-toolbar-filters .mode-toggle,
-.explorer.is-map-fullscreen .explorer-toolbar-filters .mode-toggle {
-  width: auto;
-  flex: 0 0 auto;
-}
-
-.explorer:fullscreen .explorer-toolbar-filters .mode-toggle button,
-.explorer:-webkit-full-screen .explorer-toolbar-filters .mode-toggle button,
-.explorer.is-map-fullscreen .explorer-toolbar-filters .mode-toggle button {
-  flex: 0 0 auto;
-  gap: 0.35rem;
-  padding: 0.45rem 0.65rem;
-  font-size: 0.8rem;
 }
 
 .explorer:fullscreen .explorer-search,
@@ -1063,11 +1092,10 @@ html.map-fs-active body {
     left: max(0.55rem, env(safe-area-inset-left));
     right: max(0.55rem, env(safe-area-inset-right));
     z-index: 4;
-    display: flex;
-    flex-wrap: nowrap;
-    align-items: center;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 0.45rem;
-    padding: 0.45rem 0.5rem;
+    padding: 0.5rem 0.55rem;
     border-radius: 0.85rem;
     background: rgba(7, 20, 18, 0.82);
     border: 1px solid rgba(231, 242, 239, 0.14);
@@ -1077,24 +1105,25 @@ html.map-fs-active body {
   }
 
   .explorer.is-map-fullscreen .explorer-toolbar-filters {
-    flex: 1 1 auto;
+    grid-column: 1 / -1;
     min-width: 0;
-    display: flex;
-    flex-wrap: nowrap;
-    align-items: center;
-    gap: 0.4rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.45rem;
   }
 
   .explorer.is-map-fullscreen .explorer-toolbar-filters .mode-toggle {
-    width: auto;
-    flex: 0 0 auto;
+    width: 100%;
+    display: flex;
   }
 
   .explorer.is-map-fullscreen .explorer-toolbar-filters .mode-toggle button {
-    flex: 0 0 auto;
-    gap: 0.35rem;
-    padding: 0.45rem 0.6rem;
-    font-size: 0.78rem;
+    flex: 1 1 0;
+    min-width: 0;
+    gap: 0.4rem;
+    padding: 0.5rem 0.65rem;
+    font-size: 0.84rem;
+    text-align: center;
   }
 
   .explorer.is-map-fullscreen .explorer-toolbar-filters .mode-toggle-icon {
@@ -1102,9 +1131,22 @@ html.map-fs-active body {
     height: 1.05rem;
   }
 
-  .explorer.is-map-fullscreen .horizon-toggle button {
-    padding: 0.45rem 0.65rem;
-    font-size: 0.78rem;
+  .explorer.is-map-fullscreen .explorer-toolbar-filters .horizon-toggle:not([hidden]) {
+    width: 100%;
+    display: flex;
+    justify-self: stretch;
+  }
+
+  .explorer.is-map-fullscreen .explorer-toolbar-filters .horizon-toggle[hidden] {
+    display: none;
+  }
+
+  .explorer.is-map-fullscreen .explorer-toolbar-filters .horizon-toggle button {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0.5rem 0.65rem;
+    font-size: 0.84rem;
+    text-align: center;
   }
 
   .explorer.is-map-fullscreen .explorer-search {
@@ -1113,9 +1155,9 @@ html.map-fs-active body {
 
   .explorer.is-map-fullscreen .explorer-toolbar-meta {
     display: flex;
-    flex: 0 0 auto;
+    grid-column: 1 / -1;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: stretch;
     gap: 0;
     margin: 0;
   }
@@ -1134,6 +1176,7 @@ html.map-fs-active body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    width: 100%;
     position: static;
     appearance: none;
     border: 1px solid rgba(231, 242, 239, 0.22);
@@ -1637,8 +1680,8 @@ html.map-fs-active body {
   display: grid;
   grid-template-columns: auto 1fr;
   grid-template-areas:
-    'kicker kicker'
-    'title meta';
+    "kicker kicker"
+    "title meta";
   gap: 0.2rem 0.75rem;
   align-items: baseline;
   padding: 0.85rem 1rem;
@@ -1652,7 +1695,7 @@ html.map-fs-active body {
 
 .georisques-summary::after {
   grid-column: 1 / -1;
-  content: 'Afficher l’annexe';
+  content: "Afficher l’annexe";
   margin-top: 0.35rem;
   font-size: 0.78rem;
   letter-spacing: 0.04em;
@@ -1661,7 +1704,7 @@ html.map-fs-active body {
 }
 
 .georisques-details[open] .georisques-summary::after {
-  content: 'Masquer l’annexe';
+  content: "Masquer l’annexe";
 }
 
 .georisques-summary-kicker {

@@ -167,13 +167,25 @@ Après changement de `PUBLIC_API_URL`, **rebuild** le front (valeur souvent fig�
 
 ## 5. Mises à jour applicatives
 
+Menu interactif (recommandé sur le VPS) :
+
 ```bash
-git pull
+./deploy.sh
+# → 1) Mettre à jour le site   (git pull + build api/web + up + migrate)
+#     → ne relance PAS l’import communes ni l’ETL
+# → 2) Mettre à jour sans pull (build api/web + up + migrate)
+```
+
+Équivalent en ligne de commande :
+
+```bash
+./deploy.sh --update
+# ou sans git pull :
 ./deploy.sh --build --up --migrate
 ```
 
 - Les données Postgres / Redis / ETL sur disque sont conservées.
-- Relancer un ETL seulement si les sources ou la méthodo le demandent.
+- Relancer un ETL seulement si les sources ou la méthodo le demandent (menu 7–11).
 
 Re-blend réglementaire après un ETL climat qui a écrasé des scores :
 
@@ -228,7 +240,7 @@ Tester une restauration sur un environnement de staging avant incident.
 
 ## Références
 
-- Script : `./deploy.sh --help`
+- Script : `./deploy.sh` (menu) ou `./deploy.sh --help`
 - Compose : `docker-compose.yml`
 - Env modèle : `.env.example`
 - Dev local : [README](../README.md)

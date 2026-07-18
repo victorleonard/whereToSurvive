@@ -118,11 +118,30 @@ function isActive(match: string) {
       </p>
     </footer>
 
+    <div
+      class="page-loading"
+      data-page-loading
+      hidden
+      aria-hidden="true"
+      role="status"
+      aria-live="polite"
+    >
+      <div class="page-loading-bar" aria-hidden="true"></div>
+      <div class="page-loading-panel">
+        <span class="page-loading-spinner" aria-hidden="true"></span>
+        <p class="page-loading-label" data-page-loading-label>Chargement…</p>
+      </div>
+    </div>
+
     <script>
       const toggle = document.querySelector('[data-menu-toggle]')
       const menu = document.querySelector('[data-site-menu]')
       const backdrop = document.querySelector('[data-menu-backdrop]')
       const links = document.querySelectorAll('[data-menu-link]')
+      const pageLoading = document.querySelector('[data-page-loading]')
+      const pageLoadingLabel = document.querySelector(
+        '[data-page-loading-label]',
+      )
 
       if (
         toggle instanceof HTMLButtonElement &&
@@ -152,6 +171,64 @@ function isActive(match: string) {
           if (event.key === 'Escape') setOpen(false)
         })
       }
+
+      function navigationMessage(pathname) {
+        if (pathname.startsWith('/commune/')) return 'Chargement de la fiche…'
+        if (pathname.startsWith('/comparer')) return 'Chargement du comparateur…'
+        if (pathname.startsWith('/methodologie')) return 'Chargement…'
+        return 'Chargement…'
+      }
+
+      function showPageLoading(message) {
+        if (!(pageLoading instanceof HTMLElement)) return
+        if (pageLoadingLabel instanceof HTMLElement) {
+          pageLoadingLabel.textContent = message
+        }
+        pageLoading.hidden = false
+        pageLoading.setAttribute('aria-hidden', 'false')
+        document.body.classList.add('is-page-loading')
+      }
+
+      function hidePageLoading() {
+        if (!(pageLoading instanceof HTMLElement)) return
+        pageLoading.hidden = true
+        pageLoading.setAttribute('aria-hidden', 'true')
+        document.body.classList.remove('is-page-loading')
+      }
+
+      document.addEventListener('click', (event) => {
+        if (!(event.target instanceof Element)) return
+        if (event.defaultPrevented || event.button !== 0) return
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+          return
+        }
+
+        const anchor = event.target.closest('a[href]')
+        if (!(anchor instanceof HTMLAnchorElement)) return
+        if (anchor.target === '_blank' || anchor.hasAttribute('download')) {
+          return
+        }
+
+        let url
+        try {
+          url = new URL(anchor.href, location.href)
+        } catch {
+          return
+        }
+
+        if (url.origin !== location.origin) return
+        if (
+          url.pathname === location.pathname &&
+          url.search === location.search
+        ) {
+          return
+        }
+
+        showPageLoading(navigationMessage(url.pathname))
+        anchor.classList.add('is-nav-loading')
+      })
+
+      window.addEventListener('pageshow', hidePageLoading)
     </script>
   </body>
 </html>

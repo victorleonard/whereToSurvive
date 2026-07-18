@@ -648,6 +648,7 @@ const climateProfiles = [
 
     async function refresh() {
       const weights = currentWeights()
+      explorer.classList.add('is-data-loading')
       status.textContent = 'Mise à jour…'
 
       try {
@@ -747,6 +748,8 @@ const climateProfiles = [
       } catch (error) {
         console.error(error)
         status.textContent = `Erreur API: ${error instanceof Error ? error.message : 'inconnue'}`
+      } finally {
+        explorer.classList.remove('is-data-loading')
       }
     }
 
@@ -942,6 +945,7 @@ const climateProfiles = [
     })
 
     let searchTimer = 0
+    let searchSeq = 0
     searchInput?.addEventListener('input', () => {
       window.clearTimeout(searchTimer)
       searchTimer = window.setTimeout(async () => {
@@ -953,12 +957,18 @@ const climateProfiles = [
           return
         }
 
+        const seq = ++searchSeq
+        searchResults.innerHTML =
+          '<li class="search-empty search-loading">Recherche…</li>'
+        searchResults.hidden = false
+
         try {
           const res = await fetch(
             `${apiBase}/communes/search?q=${encodeURIComponent(q)}&horizon=${activeHorizon}`,
           )
           if (!res.ok) throw new Error(`HTTP ${res.status}`)
           const data = await res.json()
+          if (seq !== searchSeq) return
           const results = data.results ?? []
           if (!results.length) {
             searchResults.innerHTML = '<li class="search-empty">Aucun résultat</li>'
@@ -981,6 +991,10 @@ const climateProfiles = [
           searchResults.hidden = false
         } catch (error) {
           console.error(error)
+          if (seq !== searchSeq) return
+          searchResults.innerHTML =
+            '<li class="search-empty">Recherche indisponible</li>'
+          searchResults.hidden = false
         }
       }, 220)
     })

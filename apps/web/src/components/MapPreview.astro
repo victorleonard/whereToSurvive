@@ -1,6 +1,8 @@
 ---
 import CloudSun from '@lucide/astro/icons/cloud-sun'
 import House from '@lucide/astro/icons/house'
+import Maximize2 from '@lucide/astro/icons/maximize-2'
+import Minimize2 from '@lucide/astro/icons/minimize-2'
 
 const apiBase =
   import.meta.env.PUBLIC_API_URL ??
@@ -97,6 +99,18 @@ const climateProfiles = [
         aria-pressed="false"
         title="Plein écran"
       >
+        <Maximize2
+          class="map-fullscreen-icon map-fullscreen-icon-enter"
+          size={15}
+          stroke-width={2}
+          aria-hidden="true"
+        />
+        <Minimize2
+          class="map-fullscreen-icon map-fullscreen-icon-exit"
+          size={15}
+          stroke-width={2}
+          aria-hidden="true"
+        />
         <span data-fullscreen-label>Plein écran</span>
       </button>
       <button
@@ -763,6 +777,7 @@ const climateProfiles = [
         activeProfile = 'balanced'
         activeSector = ''
         setProfileButtons()
+        syncModeUi()
         setActiveSector('', map)
         void refresh()
       })

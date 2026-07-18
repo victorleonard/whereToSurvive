@@ -751,6 +751,29 @@ main {
   padding: 0.45rem 0.75rem;
   cursor: pointer;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.map-fullscreen-icon {
+  flex-shrink: 0;
+  width: 0.95rem;
+  height: 0.95rem;
+  stroke: currentColor;
+}
+
+.map-fullscreen-icon-exit {
+  display: none;
+}
+
+.map-fullscreen-btn.is-active .map-fullscreen-icon-enter {
+  display: none;
+}
+
+.map-fullscreen-btn.is-active .map-fullscreen-icon-exit {
+  display: block;
 }
 
 .map-fullscreen-btn:hover {
@@ -2476,16 +2499,34 @@ html.map-fs-active body {
   .explorer-toolbar-filters {
     grid-column: 1 / -1;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr);
     gap: 0.5rem;
   }
 
   .explorer-toolbar-filters .mode-toggle {
     width: 100%;
+    display: flex;
   }
 
   .explorer-toolbar-filters .mode-toggle button {
-    flex: 1;
+    flex: 1 1 0;
+    min-width: 0;
+    text-align: center;
+  }
+
+  .explorer-toolbar-filters .horizon-toggle:not([hidden]) {
+    width: 100%;
+    display: flex;
+    justify-self: stretch;
+  }
+
+  .explorer-toolbar-filters .horizon-toggle[hidden] {
+    display: none;
+  }
+
+  .explorer-toolbar-filters .horizon-toggle button {
+    flex: 1 1 0;
+    min-width: 0;
     text-align: center;
   }
 

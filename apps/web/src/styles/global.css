@@ -270,6 +270,24 @@ main {
   overflow-x: clip;
 }
 
+.site-footer p {
+  margin: 0;
+}
+
+.site-footer-credit {
+  margin-top: 0.75rem;
+}
+
+.site-footer-credit a {
+  color: var(--mist);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+.site-footer-credit a:hover {
+  color: var(--foam);
+}
+
 .hero {
   min-height: calc(100vh - 5rem);
   display: grid;

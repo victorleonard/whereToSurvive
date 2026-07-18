@@ -346,7 +346,7 @@ const climateProfiles = [
     for (const [key, value] of Object.entries(weights)) {
       params.set(`w_${key}`, String(value))
     }
-    params.set('limit', '200')
+    params.set('limit', '5000')
     params.set('horizon', activeHorizon)
     return params
   }
